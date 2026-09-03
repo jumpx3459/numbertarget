@@ -1,10 +1,11 @@
-import { GameStats, Language, UserProfile } from '../types';
+import { CardTheme, GameStats, Language, UserProfile } from '../types';
 
 const STATS_KEY = 'number_target_stats_v1';
 const SOUND_KEY = 'number_target_sound_v1';
 const THEME_KEY = 'number_target_theme_v1';
 const PROFILE_KEY = 'number_target_profile_v1';
 const LANG_KEY = 'number_target_lang_v1';
+const CARD_THEME_KEY = 'number_target_card_theme_v1';
 
 export const DEFAULT_PROFILE: UserProfile = {
   nickname: '넘버마스터',
@@ -124,6 +125,26 @@ export function loadLanguageSetting(): Language {
 export function saveLanguageSetting(lang: Language): void {
   try {
     localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    // Ignore
+  }
+}
+
+const VALID_CARD_THEMES: CardTheme[] = ['neo', 'poker', 'hwatu', 'monster', 'fairytale'];
+
+export function loadCardThemeSetting(): CardTheme {
+  try {
+    const raw = localStorage.getItem(CARD_THEME_KEY);
+    if (raw && (VALID_CARD_THEMES as string[]).includes(raw)) return raw as CardTheme;
+    return 'neo';
+  } catch {
+    return 'neo';
+  }
+}
+
+export function saveCardThemeSetting(cardTheme: CardTheme): void {
+  try {
+    localStorage.setItem(CARD_THEME_KEY, cardTheme);
   } catch {
     // Ignore
   }
