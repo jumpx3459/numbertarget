@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CardItem, ThemeAura, Language } from '../types';
+import { CardItem, CardTheme, ThemeAura, Language } from '../types';
 import { BINARY_OPS, UNARY_OPS } from '../utils/gameLogic';
 import { sound } from '../utils/audio';
 import { Layers, Plus, Sparkles } from 'lucide-react';
 import { getTranslation } from '../utils/i18n';
 import { DragPayload, getDragPayload, setDragPayload, subscribeDragPayload } from '../utils/dragState';
+import { getCardWatermark, getThemeBaseCardClass, isRedPokerSuit } from '../utils/cardThemes';
 
 interface CardDeckProps {
   cards: CardItem[];
@@ -19,6 +20,7 @@ interface CardDeckProps {
   target: number;
   aura?: ThemeAura;
   enableMicroHaptics?: boolean;
+  cardTheme?: CardTheme;
 }
 
 export const CardDeck: React.FC<CardDeckProps> = ({
@@ -32,6 +34,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
   language = 'ko',
   target,
   enableMicroHaptics = true,
+  cardTheme = 'neo',
 }) => {
   const isDark = theme === 'dark';
   const t = getTranslation(language);
@@ -340,7 +343,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                       onToggleSelect(card.id);
                     }
                   }}
-                  className={`group relative select-none cursor-grab active:cursor-grabbing transition-all rounded-2xl p-3.5 sm:p-5 text-center border-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-400/70 ${
+                  className={`group relative isolate select-none cursor-grab active:cursor-grabbing transition-all rounded-2xl p-3.5 sm:p-5 text-center border-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-400/70 ${
                     cards.length <= 4
                       ? 'min-w-[96px] sm:min-w-[124px] min-h-[105px] sm:min-h-[130px]'
                       : cards.length <= 6
@@ -355,9 +358,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                       ? isDark
                         ? 'bg-gradient-to-b from-fuchsia-900/90 via-fuchsia-950 to-zinc-950 text-white border-fuchsia-400 shadow-lg shadow-fuchsia-950/60 hover:border-fuchsia-300 hover:shadow-fuchsia-900/50 ring-2 ring-fuchsia-500/40'
                         : 'bg-gradient-to-b from-fuchsia-100 via-fuchsia-50 to-white text-fuchsia-950 border-fuchsia-500 shadow-md hover:border-fuchsia-600 hover:shadow-lg ring-2 ring-fuchsia-400/50'
-                      : isDark
-                      ? 'bg-gradient-to-b from-zinc-800 via-zinc-800 to-zinc-900 text-white border-zinc-600 hover:border-zinc-400 hover:shadow-xl shadow-lg'
-                      : 'bg-gradient-to-b from-white via-amber-50/50 to-orange-50/40 text-zinc-950 border-amber-300 hover:border-teal-500 hover:shadow-xl shadow-md'
+                      : getThemeBaseCardClass(cardTheme, isDark)
                   }`}
                   title={
                     language === 'ko'
@@ -369,6 +370,33 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                       : 'Click to select or drag to combine with another card'
                   }
                 >
+                  {/* Decorative Theme Watermark — purely cosmetic skin, sits behind every
+                      functional badge/number via negative z-index so it never interferes
+                      with gameplay legibility. Empty (null) for the 'neo' default theme. */}
+                  {(() => {
+                    const watermark = getCardWatermark(cardTheme, idx);
+                    if (!watermark) return null;
+                    const isPokerSuit = cardTheme === 'poker';
+                    return (
+                      <span
+                        aria-hidden="true"
+                        className={`pointer-events-none select-none absolute inset-0 flex items-center justify-center text-5xl sm:text-6xl -z-10 ${
+                          idx % 2 === 0 ? '-rotate-6' : 'rotate-6'
+                        } ${
+                          isPokerSuit
+                            ? isRedPokerSuit(watermark)
+                              ? 'text-red-500'
+                              : isDark
+                              ? 'text-zinc-300'
+                              : 'text-zinc-800'
+                            : ''
+                        } ${isDark ? 'opacity-[0.14]' : 'opacity-[0.20]'}`}
+                      >
+                        {watermark}
+                      </span>
+                    );
+                  })()}
+
                   {/* Keyboard Index Pill */}
                   <span
                     className={`absolute -top-2 left-2 z-20 px-2 py-0.5 rounded-full text-[10px] font-mono-num font-extrabold border ${

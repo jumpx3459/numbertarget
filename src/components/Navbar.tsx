@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { GameMode, UserProfile, ThemeAura, Language } from '../types';
-import { Volume2, VolumeX, Trophy, HelpCircle, Sun, Moon, Sparkles, Zap, Calendar, Sliders, User, Languages } from 'lucide-react';
+import { Volume2, VolumeX, Trophy, HelpCircle, Sun, Moon, Sparkles, Zap, Calendar, Sliders, User, Languages, Palette } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { getTranslation } from '../utils/i18n';
 
@@ -18,6 +18,7 @@ interface NavbarProps {
   onOpenRules: () => void;
   onOpenCustom: () => void;
   onOpenOnboarding: () => void;
+  onOpenCardThemes: () => void;
   dailyStreak: number;
   profile: UserProfile;
 }
@@ -35,6 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenRules,
   onOpenCustom,
   onOpenOnboarding,
+  onOpenCardThemes,
   dailyStreak,
   profile,
 }) => {
@@ -162,6 +164,25 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label={t.nav.profile}
           >
             <User className="w-4 h-4 text-teal-400" />
+          </motion.button>
+
+          {/* Card Theme (skin) picker — poker / hwatu / monster / fairytale pastel */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              sound.playCardSelect();
+              onOpenCardThemes();
+            }}
+            className={`p-2 rounded-xl border transition-all ${
+              isDark
+                ? 'bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 hover:border-zinc-700'
+                : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 shadow-xs'
+            }`}
+            title={language === 'ko' ? '카드 테마' : 'Card Theme'}
+            aria-label={language === 'ko' ? '카드 테마' : 'Card Theme'}
+          >
+            <Palette className="w-4 h-4 text-fuchsia-400" />
           </motion.button>
 
           <motion.button
