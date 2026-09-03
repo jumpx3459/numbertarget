@@ -1,4 +1,4 @@
-import { CardTheme, GameStats, Language, UserProfile } from '../types';
+import { CardTheme, GameStats, Language, PuzzleHistoryEntry, UserProfile } from '../types';
 
 const STATS_KEY = 'number_target_stats_v1';
 const SOUND_KEY = 'number_target_sound_v1';
@@ -6,6 +6,8 @@ const THEME_KEY = 'number_target_theme_v1';
 const PROFILE_KEY = 'number_target_profile_v1';
 const LANG_KEY = 'number_target_lang_v1';
 const CARD_THEME_KEY = 'number_target_card_theme_v1';
+const PUZZLE_HISTORY_KEY = 'number_target_puzzle_history_v1';
+const PUZZLE_HISTORY_MAX = 200;
 
 export const DEFAULT_PROFILE: UserProfile = {
   nickname: '넘버마스터',
@@ -147,5 +149,28 @@ export function saveCardThemeSetting(cardTheme: CardTheme): void {
     localStorage.setItem(CARD_THEME_KEY, cardTheme);
   } catch {
     // Ignore
+  }
+}
+
+export function loadPuzzleHistory(): PuzzleHistoryEntry[] {
+  try {
+    const raw = localStorage.getItem(PUZZLE_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function savePuzzleHistory(entries: PuzzleHistoryEntry[]): void {
+  try {
+    // Keep only the most recent PUZZLE_HISTORY_MAX entries — trimming from the front
+    // since entries are appended oldest-first, same as the daily-completed-dates list.
+    const trimmed =
+      entries.length > PUZZLE_HISTORY_MAX ? entries.slice(entries.length - PUZZLE_HISTORY_MAX) : entries;
+    localStorage.setItem(PUZZLE_HISTORY_KEY, JSON.stringify(trimmed));
+  } catch (e) {
+    console.error('Failed to save puzzle history', e);
   }
 }

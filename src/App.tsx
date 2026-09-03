@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'motion/react';
 import {
   Difficulty,
@@ -12,6 +12,7 @@ import {
   UserProfile,
   SolutionStep,
   Language,
+  PuzzleHistoryEntry,
 } from './types';
 import {
   BINARY_OPS,
@@ -35,9 +36,12 @@ import {
   saveLanguageSetting,
   loadCardThemeSetting,
   saveCardThemeSetting,
+  loadPuzzleHistory,
+  savePuzzleHistory,
 } from './utils/storage';
 import { sound } from './utils/audio';
 import { getTranslation } from './utils/i18n';
+import { getQuoteForPuzzle } from './utils/quotes';
 
 import { Navbar } from './components/Navbar';
 import { WorldBackdrop } from './components/WorldBackdrop';
@@ -116,6 +120,12 @@ export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() => loadThemeSetting());
   const [cardTheme, setCardTheme] = useState<CardTheme>(() => loadCardThemeSetting());
 
+  // "문제 번호" — mirrors GameStats.totalPlayed, kept in lockstep inside startNewGame's
+  // setStats call below. Initialized from the already-loaded stats so a returning
+  // player's very first puzzle (shown before any startNewGame call) shows the right
+  // number instead of always "1".
+  const [puzzleNumber, setPuzzleNumber] = useState<number>(() => stats.totalPlayed + 1);
+
   // Game configuration
   const [mode, setMode] = useState<GameMode>('classic');
   const [difficulty, setDifficulty] = useState<Difficulty>(() => profile.defaultDifficulty || 'normal');
@@ -138,6 +148,14 @@ export default function App() {
   const [blitzTimeLeft, setBlitzTimeLeft] = useState<number>(60);
   const [blitzScore, setBlitzScore] = useState<number>(0);
   const [blitzCombo, setBlitzCombo] = useState<number>(0);
+
+  // Mirrors timeSec for verifyGameEnd to read without needing timeSec in its own
+  // dependency array — that would recreate it (and everything chained off it) every
+  // second the timer ticks.
+  const timeSecRef = useRef(timeSec);
+  useEffect(() => {
+    timeSecRef.current = timeSec;
+  }, [timeSec]);
 
   // Mascot companion state
   const [mascotState, setMascotState] = useState<MascotState>('idle');
@@ -307,6 +325,9 @@ export default function App() {
         const isReplayingCompletedDaily =
           newMode === 'daily' && !customData && prev.dailyCompletedDates.includes(getTodaySeed());
         if (isReplayingCompletedDaily) return prev;
+        // "문제 번호" tracks totalPlayed 1:1, so it's bumped here too — and skipped
+        // in the same replay case, keeping the number the player already saw.
+        setPuzzleNumber(prev.totalPlayed + 1);
         return { ...prev, totalPlayed: prev.totalPlayed + 1 };
       });
     },
@@ -410,9 +431,24 @@ export default function App() {
                 : Math.min(prev.minMoves[difficulty], currentMoves),
           },
         }));
+
+        // Record this clear for the "문제 번호 + 명언 + 브래깅 공유" recap and the
+        // (optional) history list in StatsModal.
+        const entry: PuzzleHistoryEntry = {
+          puzzleNumber,
+          target: puzzle.target,
+          moves: currentMoves,
+          minPossibleMoves: CARD_COUNTS[difficulty] - 1,
+          timeSec: timeSecRef.current,
+          difficulty,
+          mode,
+          quoteAuthor: getQuoteForPuzzle(puzzleNumber).author,
+          dateISO: new Date().toISOString(),
+        };
+        savePuzzleHistory([...loadPuzzleHistory(), entry]);
       }
     },
-    [puzzle.target, stats, difficulty, mode, blitzCombo, blitzScore, triggerMascot]
+    [puzzle.target, stats, difficulty, mode, blitzCombo, blitzScore, triggerMascot, puzzleNumber]
   );
 
   // Apply Binary Operation by IDs (+, -, *, /, ^, %)
@@ -908,9 +944,11 @@ export default function App() {
           moves={moves}
           mode={mode}
           timeLeft={blitzTimeLeft}
+          timeSec={timeSec}
           score={blitzScore}
           combo={blitzCombo}
           theme={theme}
+          puzzleNumber={puzzleNumber}
           closestValue={
             cards.length > 0
               ? cards.reduce(
@@ -994,6 +1032,7 @@ export default function App() {
         minPossibleMoves={CARD_COUNTS[difficulty] - 1}
         timeSec={timeSec}
         mode={mode}
+        puzzleNumber={puzzleNumber}
         history={history}
         onNextGame={() => startNewGame(mode, difficulty)}
         onReplay={handleReset}

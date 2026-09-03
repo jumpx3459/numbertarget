@@ -22,6 +22,8 @@ interface VictoryModalProps {
   dailyPuzzleNumber?: number;
   /** Current daily streak, used only for share text when mode === 'daily'. */
   dailyStreak?: number;
+  /** "문제 #N" identity, mirrors GameStats.totalPlayed — used for the share text's bragging line. */
+  puzzleNumber?: number;
 }
 
 export const VictoryModal: React.FC<VictoryModalProps> = ({
@@ -37,6 +39,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   language = 'ko',
   dailyPuzzleNumber,
   dailyStreak,
+  puzzleNumber = 1,
 }) => {
   const isDark = theme === 'dark';
   const t = getTranslation(language);
@@ -96,9 +99,30 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
           : `🔥 ${dailyStreak}-day streak\n`
         : '';
 
+    // "브래깅" line — worded differently depending on whether the puzzle was solved
+    // at the theoretical minimum move count (same isPerfect condition as the 3-star
+    // rating above) vs. just solved.
+    const isPerfect = moves <= minPossibleMoves;
+    const timeLabel =
+      timeSec < 60
+        ? language === 'ko'
+          ? `${timeSec}초`
+          : `${timeSec}s`
+        : language === 'ko'
+        ? `${Math.round(timeSec / 60)}분`
+        : `${Math.round(timeSec / 60)}m`;
+    const braggingLine =
+      language === 'ko'
+        ? isPerfect
+          ? `나는 ${puzzleNumber}번 문제의 모든 가능한 연산법을 ${timeLabel} 만에 찾아냈다!`
+          : `나는 ${puzzleNumber}번 문제를 ${timeLabel} 만에 풀었다!`
+        : isPerfect
+        ? `I found every possible solution to puzzle #${puzzleNumber} in ${timeLabel}!`
+        : `I solved puzzle #${puzzleNumber} in ${timeLabel}!`;
+
     return language === 'ko'
-      ? `🎯 타겟너머${dayLabel}\n${starEmoji}\n${grid}\n${streakLine}• 이동 횟수: ${moves}회\n• 소요 시간: ${timeSec}초\n\n지금 도전해보세요 👉 ${window.location.href}`
-      : `🎯 Target Beyond${dayLabel}\n${starEmoji}\n${grid}\n${streakLine}• Moves: ${moves}\n• Time: ${timeSec}s\n\nTry it yourself 👉 ${window.location.href}`;
+      ? `🎯 타겟너머${dayLabel}\n${braggingLine}\n${starEmoji}\n${grid}\n${streakLine}• 이동 횟수: ${moves}회\n• 소요 시간: ${timeSec}초\n\n지금 도전해보세요 👉 ${window.location.href}`
+      : `🎯 Target Beyond${dayLabel}\n${braggingLine}\n${starEmoji}\n${grid}\n${streakLine}• Moves: ${moves}\n• Time: ${timeSec}s\n\nTry it yourself 👉 ${window.location.href}`;
   };
 
   const handleShare = async () => {

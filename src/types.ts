@@ -114,3 +114,18 @@ export interface GameStats {
   dailyCompletedDates: string[];
   achievements: string[];
 }
+
+/** One completed puzzle's record, kept for the "브래깅 공유" recap and the
+ * (optional) history list in StatsModal. `puzzleNumber` mirrors GameStats.totalPlayed
+ * at the moment the puzzle was started, not a separately-tracked counter. */
+export interface PuzzleHistoryEntry {
+  puzzleNumber: number;
+  target: number;
+  moves: number;
+  minPossibleMoves: number;
+  timeSec: number;
+  difficulty: Difficulty;
+  mode: GameMode;
+  quoteAuthor: string;
+  dateISO: string;
+}

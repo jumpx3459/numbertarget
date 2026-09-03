@@ -3,6 +3,7 @@ import { motion, animate } from 'motion/react';
 import { GameMode, ThemeAura, Language } from '../types';
 import { Target, Timer, Flame, Hash, Compass } from 'lucide-react';
 import { getTranslation } from '../utils/i18n';
+import { getQuoteForPuzzle } from '../utils/quotes';
 
 const STAR_ACCENTS = [
   { left: 8, top: 12, size: 2, delay: 0 },
@@ -20,12 +21,16 @@ interface TargetDisplayProps {
   moves: number;
   mode: GameMode;
   timeLeft?: number;
+  /** Elapsed seconds for the current puzzle — used for the live Classic/Custom timelapse badge. */
+  timeSec?: number;
   score?: number;
   combo?: number;
   theme: 'dark' | 'light';
   language?: Language;
   closestValue?: number;
   aura?: ThemeAura;
+  /** "문제 #N" identity, mirrors GameStats.totalPlayed — used for the badge and the quote. */
+  puzzleNumber?: number;
 }
 
 export const TargetDisplay: React.FC<TargetDisplayProps> = ({
@@ -33,15 +38,19 @@ export const TargetDisplay: React.FC<TargetDisplayProps> = ({
   moves,
   mode,
   timeLeft = 0,
+  timeSec = 0,
   score = 0,
   combo = 0,
   theme,
   language = 'ko',
   closestValue,
+  puzzleNumber = 1,
 }) => {
   const isDark = theme === 'dark';
   const t = getTranslation(language);
   const diff = closestValue !== undefined ? Math.abs(target - closestValue) : null;
+  const quote = getQuoteForPuzzle(puzzleNumber);
+  const elapsedLabel = `${Math.floor(timeSec / 60)}:${String(timeSec % 60).padStart(2, '0')}`;
 
   // Count-up animation whenever the target number changes (new puzzle / new game)
   const [displayTarget, setDisplayTarget] = useState(target);
@@ -118,6 +127,13 @@ export const TargetDisplay: React.FC<TargetDisplayProps> = ({
             <span className="text-base font-black uppercase tracking-wider text-teal-400">
               {t.board.target}
             </span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-mono-num font-bold ${
+                isDark ? 'bg-zinc-800/90 text-zinc-400 border border-zinc-700' : 'bg-zinc-100 text-zinc-500 border border-zinc-200'
+              }`}
+            >
+              {language === 'ko' ? `문제 #${puzzleNumber}` : `#${puzzleNumber}`}
+            </span>
           </div>
 
           {/* Mode-specific Stats */}
@@ -155,6 +171,19 @@ export const TargetDisplay: React.FC<TargetDisplayProps> = ({
               </div>
             ) : (
               <div className="flex items-center gap-2">
+                {(mode === 'classic' || mode === 'custom') && (
+                  <div
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-base font-mono-num font-extrabold ${
+                      isDark
+                        ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                        : 'bg-amber-50 text-amber-700 border border-amber-200'
+                    }`}
+                  >
+                    <Timer className="w-3.5 h-3.5" />
+                    <span>{elapsedLabel}</span>
+                  </div>
+                )}
+
                 {diff !== null && diff > 0 && diff <= 50 && (
                   <div
                     className={`hidden sm:flex items-center gap-1 px-2.5 py-0.5 rounded-full text-base font-semibold ${
@@ -214,6 +243,12 @@ export const TargetDisplay: React.FC<TargetDisplayProps> = ({
                 Combine cards with math operators to reach exactly <strong className="text-teal-400 font-mono-num font-bold">{target}</strong>!
               </>
             )}
+          </p>
+
+          <p className={`text-xs italic mt-2 text-center max-w-md ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+            {language === 'ko'
+              ? `"${quote.ko}" — ${quote.author}`
+              : `"${quote.en}" — ${quote.author}`}
           </p>
         </div>
       </motion.div>

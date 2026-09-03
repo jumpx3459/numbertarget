@@ -1,9 +1,10 @@
 import React from 'react';
 import { GameStats, Language } from '../types';
-import { Trophy, Award, X, Flame } from 'lucide-react';
+import { Trophy, Award, X, Flame, History } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { getTranslation } from '../utils/i18n';
 import { getTodaySeed, getPrevSeed } from '../utils/gameLogic';
+import { loadPuzzleHistory } from '../utils/storage';
 
 interface StatsModalProps {
   isOpen: boolean;
@@ -71,6 +72,9 @@ export const StatsModal: React.FC<StatsModalProps> = ({
   if (!isOpen) return null;
 
   const winRate = stats.totalPlayed > 0 ? Math.round((stats.totalWon / stats.totalPlayed) * 100) : 0;
+  // Most-recent-first, capped to the last 15 solves — the store itself already caps
+  // at 200 entries (see savePuzzleHistory), this is just the display window.
+  const puzzleHistory = loadPuzzleHistory().slice(-15).reverse();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
@@ -249,6 +253,35 @@ export const StatsModal: React.FC<StatsModalProps> = ({
             })}
           </div>
         </div>
+
+        {/* Recent Puzzle History — most recent first, from PuzzleHistoryEntry records */}
+        {puzzleHistory.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-xs font-bold flex items-center gap-1 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                <History className="w-3.5 h-3.5 text-fuchsia-400" />
+                <span>{language === 'ko' ? '최근 푼 문제' : 'Recent Puzzles'}</span>
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-1">
+              {puzzleHistory.map((entry, i) => (
+                <div
+                  key={`${entry.puzzleNumber}-${entry.dateISO}-${i}`}
+                  className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-mono-num ${
+                    isDark ? 'bg-zinc-950/40 text-zinc-400' : 'bg-zinc-50 text-zinc-500'
+                  }`}
+                >
+                  <span className="font-bold text-teal-400 shrink-0">#{entry.puzzleNumber}</span>
+                  <span className="truncate">{language === 'ko' ? `목표 ${entry.target}` : `Target ${entry.target}`}</span>
+                  <span className="shrink-0">{entry.moves}{language === 'ko' ? '회' : ' mv'}</span>
+                  <span className="shrink-0">{entry.timeSec}{language === 'ko' ? '초' : 's'}</span>
+                  <span className="shrink-0 opacity-70">{entry.dateISO.slice(5, 10)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <button
           onClick={() => {
