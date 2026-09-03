@@ -18,6 +18,10 @@ interface VictoryModalProps {
   theme: 'dark' | 'light';
   language?: Language;
   score?: number;
+  /** "Day #N" identity for the daily challenge, used only for share text. */
+  dailyPuzzleNumber?: number;
+  /** Current daily streak, used only for share text when mode === 'daily'. */
+  dailyStreak?: number;
 }
 
 export const VictoryModal: React.FC<VictoryModalProps> = ({
@@ -26,10 +30,13 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   moves,
   minPossibleMoves = 4,
   timeSec,
+  mode,
   onNextGame,
   onReplay,
   theme,
   language = 'ko',
+  dailyPuzzleNumber,
+  dailyStreak,
 }) => {
   const isDark = theme === 'dark';
   const t = getTranslation(language);
@@ -66,13 +73,50 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   // Rating calculation
   const stars = moves <= minPossibleMoves ? 3 : moves <= minPossibleMoves + 2 ? 2 : 1;
 
-  const handleShare = () => {
-    sound.playCardSelect();
+  // Spoiler-safe "efficiency grid" — one square per move, green if the puzzle was
+  // solved at (or under) the theoretical minimum move count, amber otherwise. This
+  // gives the Wordle-style at-a-glance result block without revealing the solution.
+  const buildEfficiencyGrid = () => {
+    const efficient = moves <= minPossibleMoves;
+    const rowLength = Math.min(Math.max(moves, 1), 8);
+    const square = efficient ? '🟩' : stars === 2 ? '🟨' : '🟧';
+    return Array.from({ length: rowLength }, () => square).join('');
+  };
+
+  const isDaily = mode === 'daily';
+
+  const buildShareText = () => {
     const starEmoji = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
-    const text =
-      language === 'ko'
-        ? `🎯 [타겟너머] 퍼즐 클리어!\n${starEmoji}\n• 타겟: ${target}\n• 이동 횟수: ${moves}회\n• 소요 시간: ${timeSec}초\n\n지금 도전해보세요 👉 ${window.location.href}`
-        : `🎯 [TARGET BEYOND] Puzzle Solved!\n${starEmoji}\n• Target: ${target}\n• Moves: ${moves}\n• Time: ${timeSec}s\n\nTry it yourself 👉 ${window.location.href}`;
+    const grid = buildEfficiencyGrid();
+    const dayLabel = isDaily && dailyPuzzleNumber ? ` Day #${dailyPuzzleNumber}` : '';
+    const streakLine =
+      isDaily && (dailyStreak ?? 0) > 0
+        ? language === 'ko'
+          ? `🔥 ${dailyStreak}일 연속\n`
+          : `🔥 ${dailyStreak}-day streak\n`
+        : '';
+
+    return language === 'ko'
+      ? `🎯 타겟너머${dayLabel}\n${starEmoji}\n${grid}\n${streakLine}• 이동 횟수: ${moves}회\n• 소요 시간: ${timeSec}초\n\n지금 도전해보세요 👉 ${window.location.href}`
+      : `🎯 Target Beyond${dayLabel}\n${starEmoji}\n${grid}\n${streakLine}• Moves: ${moves}\n• Time: ${timeSec}s\n\nTry it yourself 👉 ${window.location.href}`;
+  };
+
+  const handleShare = async () => {
+    sound.playCardSelect();
+    const text = buildShareText();
+
+    // Prefer the native share sheet on mobile (Wordle/NYT Games pattern) — it's a
+    // far higher-converting share path than "copied to clipboard, go paste it
+    // somewhere yourself". Clipboard copy stays as the desktop/unsupported fallback.
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch {
+        // User cancelled the share sheet, or the browser rejected it — fall through
+        // to clipboard so the action still does *something*.
+      }
+    }
 
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);

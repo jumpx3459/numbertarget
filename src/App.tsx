@@ -18,6 +18,8 @@ import {
   generatePuzzle,
   getTodaySeed,
   decodeCustomPuzzle,
+  computeDailyStreak,
+  getDailyPuzzleNumber,
 } from './utils/gameLogic';
 import {
   loadGameStats,
@@ -75,7 +77,17 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => !profile.hasCompletedOnboarding);
 
   // Persistence states
-  const [stats, setStats] = useState<GameStats>(() => loadGameStats());
+  const [stats, setStats] = useState<GameStats>(() => {
+    const loaded = loadGameStats();
+    // The streak is derived from the completed-dates history rather than trusted as
+    // stored, so a gap (the app wasn't opened, or a daily was missed) is reflected
+    // correctly the moment the app is opened again — not just after the next win.
+    const correctedStreak = computeDailyStreak(loaded.dailyCompletedDates, getTodaySeed());
+    if (correctedStreak !== loaded.currentStreak) {
+      return { ...loaded, currentStreak: correctedStreak, maxStreak: Math.max(loaded.maxStreak, correctedStreak) };
+    }
+    return loaded;
+  });
   const [isMuted, setIsMuted] = useState<boolean>(() => !loadSoundSetting());
   const [theme, setTheme] = useState<'dark' | 'light'>(() => loadThemeSetting());
 
@@ -189,6 +201,30 @@ export default function App() {
     return () => clearInterval(timer);
   }, [isWon, mode, blitzScore]);
 
+  // Countdown to the next daily challenge (local midnight). Runs independently of
+  // `isWon` so it keeps ticking even after today's daily has been completed — that's
+  // exactly when it matters most.
+  const [nextDailyIn, setNextDailyIn] = useState<string>('');
+  useEffect(() => {
+    if (mode !== 'daily') return;
+    const update = () => {
+      const now = new Date();
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+      const diffMs = Math.max(0, nextMidnight.getTime() - now.getTime());
+      const h = Math.floor(diffMs / 3_600_000);
+      const m = Math.floor((diffMs % 3_600_000) / 60_000);
+      const s = Math.floor((diffMs % 60_000) / 1000);
+      setNextDailyIn(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [mode]);
+
+  const todaysDailySeed = getTodaySeed();
+  const dailyAlreadyCompletedToday = stats.dailyCompletedDates.includes(todaysDailySeed);
+  const dailyPuzzleNumber = getDailyPuzzleNumber(todaysDailySeed);
+
   // Start new puzzle
   const startNewGame = useCallback(
     (
@@ -233,7 +269,15 @@ export default function App() {
         setBlitzCombo(0);
       }
 
-      setStats((prev) => ({ ...prev, totalPlayed: prev.totalPlayed + 1 }));
+      setStats((prev) => {
+        // Reviewing/replaying a daily challenge already completed today shouldn't
+        // count as a new "game played" — otherwise switching back to the Daily tab
+        // repeatedly inflates totalPlayed and skews the win-rate stat.
+        const isReplayingCompletedDaily =
+          newMode === 'daily' && !customData && prev.dailyCompletedDates.includes(getTodaySeed());
+        if (isReplayingCompletedDaily) return prev;
+        return { ...prev, totalPlayed: prev.totalPlayed + 1 };
+      });
     },
     [mode, difficulty]
   );
@@ -291,17 +335,18 @@ export default function App() {
           newAchievements.push('minimalist');
         }
 
-        // Daily challenge tracking
+        // Daily challenge tracking — the streak is recomputed from the completed-dates
+        // history (not incremented blindly), so it breaks correctly if a day was missed.
         let newStreak = stats.currentStreak;
         let newDailyDates = [...stats.dailyCompletedDates];
         if (mode === 'daily') {
           const today = getTodaySeed();
           if (!newDailyDates.includes(today)) {
             newDailyDates.push(today);
-            newStreak += 1;
-            if (newStreak >= 3 && !newAchievements.includes('streak_3')) {
-              newAchievements.push('streak_3');
-            }
+          }
+          newStreak = computeDailyStreak(newDailyDates, today);
+          if (newStreak >= 3 && !newAchievements.includes('streak_3')) {
+            newAchievements.push('streak_3');
           }
         }
 
@@ -704,6 +749,10 @@ export default function App() {
       <Navbar
         mode={mode}
         onSelectMode={(newMode) => {
+          // Re-tapping the already-active mode shouldn't wipe an in-progress (or just
+          // completed) puzzle — that was silently resetting the board and inflating
+          // totalPlayed every time someone tapped the Daily tab they were already on.
+          if (newMode === mode) return;
           setMode(newMode);
           startNewGame(newMode, difficulty);
         }}
@@ -723,6 +772,55 @@ export default function App() {
 
       {/* Main Playing Field */}
       <main className="flex-1 flex flex-col justify-center py-2">
+        {/* Daily Challenge identity + "already completed today" status banner */}
+        {mode === 'daily' && (
+          <div className="w-full max-w-2xl mx-auto px-4 mb-3">
+            <div
+              className={`p-3 rounded-2xl border flex items-center justify-between gap-2 flex-wrap transition-all ${
+                dailyAlreadyCompletedToday
+                  ? theme === 'dark'
+                    ? 'bg-emerald-500/10 border-emerald-500/30'
+                    : 'bg-emerald-50 border-emerald-200'
+                  : theme === 'dark'
+                  ? 'bg-zinc-900/60 border-zinc-800/80'
+                  : 'bg-white border-zinc-200 shadow-xs'
+              }`}
+            >
+              <span
+                className={`text-xs sm:text-sm font-bold font-mono-num ${
+                  theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'
+                }`}
+              >
+                {language === 'ko' ? `데일리 챌린지 Day #${dailyPuzzleNumber}` : `Daily Challenge Day #${dailyPuzzleNumber}`}
+              </span>
+
+              {dailyAlreadyCompletedToday ? (
+                <span
+                  className={`text-xs sm:text-sm font-bold flex items-center gap-1.5 ${
+                    theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+                  }`}
+                >
+                  <span>
+                    {language === 'ko' ? '✅ 오늘의 챌린지 완료' : '✅ Completed today'}
+                  </span>
+                  <span className="opacity-60">·</span>
+                  <span className="font-mono-num">
+                    {language === 'ko' ? `다음 문제까지 ${nextDailyIn}` : `Next in ${nextDailyIn}`}
+                  </span>
+                </span>
+              ) : stats.currentStreak > 0 ? (
+                <span
+                  className={`text-xs sm:text-sm font-bold flex items-center gap-1 ${
+                    theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                  }`}
+                >
+                  🔥 {language === 'ko' ? `${stats.currentStreak}일 연속 도전 중` : `${stats.currentStreak}-day streak`}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        )}
+
         {/* Difficulty Settings (for Classic mode) */}
         {mode === 'classic' && (
           <div className="w-full max-w-2xl mx-auto px-4 mb-3">
@@ -867,6 +965,8 @@ export default function App() {
         theme={theme}
         score={blitzScore}
         language={language}
+        dailyPuzzleNumber={dailyPuzzleNumber}
+        dailyStreak={stats.currentStreak}
       />
 
       <HintModal

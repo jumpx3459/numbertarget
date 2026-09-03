@@ -1,8 +1,9 @@
 import React from 'react';
 import { GameStats, Language } from '../types';
-import { Trophy, Award, X } from 'lucide-react';
+import { Trophy, Award, X, Flame } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { getTranslation } from '../utils/i18n';
+import { getTodaySeed, getPrevSeed } from '../utils/gameLogic';
 
 interface StatsModalProps {
   isOpen: boolean;
@@ -45,6 +46,17 @@ const getAchievements = (lang: Language | string = 'ko') => [
   },
 ];
 
+/** Oldest-to-newest list of the last 35 calendar-day seeds ("YYYY-MM-DD"), today last. */
+const buildLast35DaySeeds = (): string[] => {
+  const seeds: string[] = [];
+  let cursor = getTodaySeed();
+  for (let i = 0; i < 35; i++) {
+    seeds.push(cursor);
+    cursor = getPrevSeed(cursor);
+  }
+  return seeds.reverse();
+};
+
 export const StatsModal: React.FC<StatsModalProps> = ({
   isOpen,
   onClose,
@@ -68,7 +80,11 @@ export const StatsModal: React.FC<StatsModalProps> = ({
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-800/60">
+        <div
+          className={`flex items-center justify-between mb-4 pb-3 border-b ${
+            isDark ? 'border-zinc-800/60' : 'border-zinc-200'
+          }`}
+        >
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
               <Trophy className="w-5 h-5" />
@@ -149,10 +165,43 @@ export const StatsModal: React.FC<StatsModalProps> = ({
           </div>
         </div>
 
+        {/* Daily Challenge Heatmap — last 5 weeks, GitHub-contributions style */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-xs font-bold flex items-center gap-1 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+              <Flame className="w-3.5 h-3.5 text-orange-400" />
+              <span>{language === 'ko' ? '데일리 챌린지 기록 (최근 5주)' : 'Daily Challenge History (last 5 weeks)'}</span>
+            </span>
+            <span className="text-[10px] text-zinc-500 font-mono-num">
+              {language === 'ko' ? `최장 ${stats.maxStreak}일` : `Best ${stats.maxStreak}d`}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {buildLast35DaySeeds().map((seed) => {
+              const isDone = stats.dailyCompletedDates.includes(seed);
+              const isToday = seed === getTodaySeed();
+              return (
+                <div
+                  key={seed}
+                  title={seed}
+                  className={`aspect-square rounded-[4px] ${
+                    isDone
+                      ? 'bg-teal-500'
+                      : isDark
+                      ? 'bg-zinc-800/70'
+                      : 'bg-zinc-200'
+                  } ${isToday ? (isDark ? 'ring-2 ring-teal-300' : 'ring-2 ring-teal-500') : ''}`}
+                />
+              );
+            })}
+          </div>
+        </div>
+
         {/* Achievements Section */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-zinc-400 flex items-center gap-1">
+            <span className={`text-xs font-bold flex items-center gap-1 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
               <Award className="w-3.5 h-3.5 text-teal-400" />
               <span>{language === 'ko' ? '도전 과제' : 'Achievements'}</span>
             </span>
@@ -181,14 +230,16 @@ export const StatsModal: React.FC<StatsModalProps> = ({
                     <span className="text-xl">{ach.icon}</span>
                     <div>
                       <h4 className="text-xs font-bold leading-tight">{ach.name}</h4>
-                      <p className="text-[10px] text-zinc-400">{ach.desc}</p>
+                      <p className={`text-[10px] ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>{ach.desc}</p>
                     </div>
                   </div>
                   <span
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                       isUnlocked
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                        : 'bg-zinc-800 text-zinc-500'
+                        : isDark
+                        ? 'bg-zinc-800 text-zinc-500'
+                        : 'bg-zinc-200 text-zinc-500'
                     }`}
                   >
                     {isUnlocked ? (language === 'ko' ? '완료' : 'Done') : (language === 'ko' ? '미달성' : 'Locked')}
@@ -204,7 +255,9 @@ export const StatsModal: React.FC<StatsModalProps> = ({
             sound.playCardDeselect();
             onClose();
           }}
-          className="w-full py-2.5 rounded-xl font-bold text-xs bg-zinc-800 hover:bg-zinc-700 text-white transition-all cursor-pointer"
+          className={`w-full py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+            isDark ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'
+          }`}
         >
           {t.statsModal.close}
         </button>

@@ -688,6 +688,58 @@ export function getTodaySeed(): string {
   ).padStart(2, '0')}`;
 }
 
+/**
+ * Given a "YYYY-MM-DD" date seed, returns the seed for the calendar day before it.
+ * All arithmetic is done on local-time Date components (matching getTodaySeed()),
+ * so this stays consistent across DST changes and never touches UTC.
+ */
+export function getPrevSeed(seed: string): string {
+  const [y, m, d] = seed.split('-').map((n) => parseInt(n, 10));
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() - 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate()
+  ).padStart(2, '0')}`;
+}
+
+/**
+ * Derives the current daily-challenge streak from the set of completed dates,
+ * rather than incrementing a stored counter. This makes the streak self-healing:
+ * a gap of one or more missed days is always reflected correctly, including the
+ * very first time the app is opened after the gap (no stale "still climbing"
+ * counter left over from before the miss).
+ *
+ * Today not yet being completed does NOT break the streak by itself — the streak
+ * only breaks once a full day has been skipped (i.e. yesterday is also missing).
+ * This mirrors how Wordle-style daily streaks behave.
+ */
+export function computeDailyStreak(completedDates: string[], todaySeed: string = getTodaySeed()): number {
+  if (completedDates.length === 0) return 0;
+  const completed = new Set(completedDates);
+  let streak = 0;
+  let cursor = completed.has(todaySeed) ? todaySeed : getPrevSeed(todaySeed);
+  // Bounded by the number of completed dates so this can never loop unreasonably long.
+  const maxIterations = completedDates.length + 1;
+  for (let i = 0; i < maxIterations && completed.has(cursor); i++) {
+    streak++;
+    cursor = getPrevSeed(cursor);
+  }
+  return streak;
+}
+
+/**
+ * A stable, ever-increasing "Day #N" number for the daily challenge, anchored to a
+ * fixed launch date. Used purely for identity/shareability (e.g. "타겟너머 Day #42"),
+ * the way Wordle/NYT Connections number their daily puzzles.
+ */
+const DAILY_EPOCH = new Date(2026, 0, 1); // 2026-01-01, local time
+export function getDailyPuzzleNumber(seed: string = getTodaySeed()): number {
+  const [y, m, d] = seed.split('-').map((n) => parseInt(n, 10));
+  const date = new Date(y, m - 1, d);
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.max(1, Math.round((date.getTime() - DAILY_EPOCH.getTime()) / msPerDay) + 1);
+}
+
 export function encodeCustomPuzzle(target: number, cards: number[]): string {
   return `T${target}_C${cards.join('_')}`;
 }

@@ -115,7 +115,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <motion.div
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
-              className={`hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+              className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full text-xs font-bold ${
                 isDark ? 'bg-orange-500/10 border border-orange-500/30 text-orange-400' : 'bg-orange-50 border border-orange-200 text-orange-600'
               }`}
               title={language === 'ko' ? `${dailyStreak}일 연속 챌린지 성공!` : `${dailyStreak}-day streak!`}
