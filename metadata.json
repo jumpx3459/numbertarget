@@ -1,0 +1,6 @@
+{
+  "name": "타겟너머 (Target Beyond)",
+  "description": "주어진 숫자 카드와 연산자를 조합하여 목표 숫자를 만들어내는 햅틱 피드백 기반 두뇌 연산 수학 퍼즐 게임",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
