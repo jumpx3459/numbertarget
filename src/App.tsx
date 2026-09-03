@@ -4,6 +4,7 @@ import {
   Difficulty,
   GameMode,
   CardItem,
+  CardTheme,
   HistoryStep,
   BinaryOp,
   UnaryOp,
@@ -32,6 +33,8 @@ import {
   saveUserProfile,
   loadLanguageSetting,
   saveLanguageSetting,
+  loadCardThemeSetting,
+  saveCardThemeSetting,
 } from './utils/storage';
 import { sound } from './utils/audio';
 import { getTranslation } from './utils/i18n';
@@ -51,6 +54,7 @@ import { CustomGameModal } from './components/CustomGameModal';
 import { RulesModal } from './components/RulesModal';
 import { OnboardingModal } from './components/OnboardingModal';
 import { SolutionModal } from './components/SolutionModal';
+import { CardThemeModal } from './components/CardThemeModal';
 
 const CARD_COUNTS: Record<Difficulty, number> = {
   easy: 4,
@@ -90,6 +94,7 @@ export default function App() {
   });
   const [isMuted, setIsMuted] = useState<boolean>(() => !loadSoundSetting());
   const [theme, setTheme] = useState<'dark' | 'light'>(() => loadThemeSetting());
+  const [cardTheme, setCardTheme] = useState<CardTheme>(() => loadCardThemeSetting());
 
   // Game configuration
   const [mode, setMode] = useState<GameMode>('classic');
@@ -136,6 +141,7 @@ export default function App() {
   const [showStats, setShowStats] = useState<boolean>(false);
   const [showRules, setShowRules] = useState<boolean>(false);
   const [showCustom, setShowCustom] = useState<boolean>(false);
+  const [showCardThemes, setShowCardThemes] = useState<boolean>(false);
 
   // Sync sound flavor
   useEffect(() => {
@@ -173,6 +179,11 @@ export default function App() {
   useEffect(() => {
     saveGameStats(stats);
   }, [stats]);
+
+  // Persist the chosen card skin (poker / hwatu / monster / fairytale / neo)
+  useEffect(() => {
+    saveCardThemeSetting(cardTheme);
+  }, [cardTheme]);
 
   // Timer loop for regular modes and Blitz mode
   useEffect(() => {
@@ -764,6 +775,7 @@ export default function App() {
         onOpenRules={() => setShowRules(true)}
         onOpenCustom={() => setShowCustom(true)}
         onOpenOnboarding={() => setShowOnboarding(true)}
+        onOpenCardThemes={() => setShowCardThemes(true)}
         dailyStreak={stats.currentStreak}
         profile={profile}
         language={language}
@@ -907,6 +919,7 @@ export default function App() {
           aura={profile.aura}
           enableMicroHaptics={profile.enableMicroHaptics}
           language={language}
+          cardTheme={cardTheme}
         />
 
         {/* Operator Dock with Live Ghost Result Preview */}
@@ -1020,6 +1033,15 @@ export default function App() {
           setMode('custom');
           startNewGame('custom', 'normal', { target, cards: customCards });
         }}
+        theme={theme}
+        language={language}
+      />
+
+      <CardThemeModal
+        isOpen={showCardThemes}
+        onClose={() => setShowCardThemes(false)}
+        cardTheme={cardTheme}
+        onSelectCardTheme={setCardTheme}
         theme={theme}
         language={language}
       />

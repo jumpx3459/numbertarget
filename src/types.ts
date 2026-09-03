@@ -85,6 +85,9 @@ export interface Puzzle {
 
 export type ThemeAura = 'teal' | 'mint' | 'rose' | 'violet' | 'amber';
 
+/** Visual "skin" applied to the number cards — purely decorative, never affects game state colors. */
+export type CardTheme = 'neo' | 'poker' | 'hwatu' | 'monster' | 'fairytale';
+
 export type SoundFlavor = 'modern' | 'retro' | 'minimal';
 
 export interface UserProfile {
