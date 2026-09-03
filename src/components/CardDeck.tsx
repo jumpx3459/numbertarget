@@ -482,12 +482,12 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                     onDragLeave={handleSlotDragLeave}
                     onDrop={(e) => handleSlotDrop(e, idx)}
                     onClick={() => handleSlotClick(idx)}
-                    className={`relative flex flex-col items-center justify-center transition-all duration-200 z-10 cursor-pointer ${
+                    className={`group relative flex flex-col items-center justify-center transition-all duration-200 z-10 cursor-pointer ${
                       activeDropSlot === idx
                         ? 'w-20 sm:w-24 h-16 sm:h-20 scale-105'
                         : isDraggingBinary
                         ? 'w-16 sm:w-20 h-16 sm:h-20'
-                        : 'w-8 sm:w-10 h-16 sm:h-20 hover:w-12'
+                        : 'w-8 sm:w-10 h-16 sm:h-20'
                     }`}
                   >
                     <div
@@ -497,8 +497,8 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                           : isDraggingBinary
                           ? 'h-12 sm:h-14 bg-teal-500/20 border-teal-400 border-dashed text-teal-300 animate-pulse shadow-md'
                           : isDark
-                          ? 'h-9 sm:h-10 bg-zinc-900 border-zinc-700 hover:border-zinc-500 text-zinc-300 hover:text-white hover:bg-zinc-800 shadow-xs'
-                          : 'h-9 sm:h-10 bg-zinc-100 border-zinc-300 hover:border-teal-500 text-zinc-700 hover:text-teal-700 hover:bg-teal-50 shadow-xs'
+                          ? 'h-9 sm:h-10 bg-zinc-900 border-zinc-700 group-hover:border-zinc-500 text-zinc-300 group-hover:text-white group-hover:bg-zinc-800 group-hover:scale-110 shadow-xs'
+                          : 'h-9 sm:h-10 bg-zinc-100 border-zinc-300 group-hover:border-teal-500 text-zinc-700 group-hover:text-teal-700 group-hover:bg-teal-50 group-hover:scale-110 shadow-xs'
                       }`}
                       title={
                         language === 'ko'
