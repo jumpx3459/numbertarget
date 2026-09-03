@@ -114,10 +114,10 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
     const braggingLine =
       language === 'ko'
         ? isPerfect
-          ? `나는 ${puzzleNumber}번 문제의 모든 가능한 연산법을 ${timeLabel} 만에 찾아냈다!`
+          ? `나는 ${puzzleNumber}번 문제를 단 ${moves}번의 연산으로, ${timeLabel} 만에 클리어했다!`
           : `나는 ${puzzleNumber}번 문제를 ${timeLabel} 만에 풀었다!`
         : isPerfect
-        ? `I found every possible solution to puzzle #${puzzleNumber} in ${timeLabel}!`
+        ? `I cleared puzzle #${puzzleNumber} in just ${moves} moves, in ${timeLabel}!`
         : `I solved puzzle #${puzzleNumber} in ${timeLabel}!`;
 
     return language === 'ko'
