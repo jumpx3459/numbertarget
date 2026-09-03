@@ -91,25 +91,28 @@ export const CardThemeModal: React.FC<CardThemeModalProps> = ({
                   </span>
                 )}
 
-                {/* Mini card preview matching the actual in-game skin */}
+                {/* Mini card preview matching the actual in-game skin (small corner mark,
+                    same treatment as the real cards — not a giant center watermark) */}
                 <div
-                  className={`relative w-full h-16 rounded-xl border-2 flex items-center justify-center overflow-hidden ${previewCardClass}`}
+                  className={`relative w-full h-16 rounded-xl border-2 flex items-center justify-center ${previewCardClass}`}
                 >
                   {watermark && (
                     <span
                       aria-hidden="true"
-                      className={`pointer-events-none select-none absolute inset-0 flex items-center justify-center text-3xl -rotate-6 ${
+                      className={`pointer-events-none select-none absolute bottom-1 left-1.5 text-sm leading-none ${
                         opt.id === 'poker'
                           ? isRedPokerSuit(watermark)
-                            ? 'text-red-500 opacity-70'
-                            : `${isDark ? 'text-zinc-200' : 'text-zinc-900'} opacity-70`
-                          : 'opacity-80'
+                            ? 'text-red-500'
+                            : isDark
+                            ? 'text-zinc-300'
+                            : 'text-zinc-700'
+                          : 'opacity-90'
                       }`}
                     >
                       {watermark}
                     </span>
                   )}
-                  <span className="relative font-mono-num font-black text-xl z-[1]">7</span>
+                  <span className="relative font-mono-num font-black text-xl">7</span>
                 </div>
 
                 <div className="w-full">

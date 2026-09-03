@@ -370,29 +370,30 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                       : 'Click to select or drag to combine with another card'
                   }
                 >
-                  {/* Decorative Theme Watermark — purely cosmetic skin, sits behind every
-                      functional badge/number via negative z-index so it never interferes
-                      with gameplay legibility. Empty (null) for the 'neo' default theme. */}
+                  {/* Decorative Theme Corner Mark — a small, real-card-style corner glyph
+                      rather than a giant background watermark (an earlier version filled
+                      the whole card and read as a smudge, not a design). Tucked into the
+                      one corner nothing else uses (index pill = top-left outside the card,
+                      computed/selected badge = top-right, target flag = bottom-center).
+                      Empty (null) for the 'neo' default theme. */}
                   {(() => {
-                    const watermark = getCardWatermark(cardTheme, idx);
-                    if (!watermark) return null;
+                    const glyph = getCardWatermark(cardTheme, idx);
+                    if (!glyph) return null;
                     const isPokerSuit = cardTheme === 'poker';
                     return (
                       <span
                         aria-hidden="true"
-                        className={`pointer-events-none select-none absolute inset-0 flex items-center justify-center text-5xl sm:text-6xl -z-10 ${
-                          idx % 2 === 0 ? '-rotate-6' : 'rotate-6'
-                        } ${
+                        className={`pointer-events-none select-none absolute bottom-1.5 left-2 sm:bottom-2 sm:left-2.5 text-base sm:text-lg leading-none z-0 ${
                           isPokerSuit
-                            ? isRedPokerSuit(watermark)
+                            ? isRedPokerSuit(glyph)
                               ? 'text-red-500'
                               : isDark
                               ? 'text-zinc-300'
-                              : 'text-zinc-800'
-                            : ''
-                        } ${isDark ? 'opacity-[0.14]' : 'opacity-[0.20]'}`}
+                              : 'text-zinc-700'
+                            : 'opacity-90'
+                        }`}
                       >
-                        {watermark}
+                        {glyph}
                       </span>
                     );
                   })()}
