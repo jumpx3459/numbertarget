@@ -13,6 +13,10 @@ interface MascotProps {
   trigger: number;
   theme: 'dark' | 'light';
   language?: 'ko' | 'en';
+  /** Render in normal document flow (small, sits inline next to other UI) instead of
+   * fixed to the screen corner. Used when the mascot is anchored inside a section
+   * like the card deck header rather than floating over the whole page. */
+  inline?: boolean;
 }
 
 const FACES: Record<MascotState, string> = {
@@ -27,7 +31,7 @@ const BUBBLE_TEXT: Record<'ko' | 'en', Record<MascotState, string | null>> = {
   en: { idle: null, happy: 'Nice!', sad: 'Oops!', win: 'You did it!' },
 };
 
-export const Mascot: React.FC<MascotProps> = ({ state, trigger, theme, language = 'ko' }) => {
+export const Mascot: React.FC<MascotProps> = ({ state, trigger, theme, language = 'ko', inline = false }) => {
   const isDark = theme === 'dark';
   const bubble = BUBBLE_TEXT[language][state];
 
@@ -46,7 +50,13 @@ export const Mascot: React.FC<MascotProps> = ({ state, trigger, theme, language 
       : { duration: state === 'win' ? 1.1 : 0.6, ease: 'easeOut' as const };
 
   return (
-    <div className="fixed bottom-4 right-3 sm:bottom-6 sm:right-6 z-40 pointer-events-none select-none">
+    <div
+      className={
+        inline
+          ? 'relative inline-flex items-center justify-center pointer-events-none select-none'
+          : 'fixed bottom-4 right-3 sm:bottom-6 sm:right-6 z-40 pointer-events-none select-none'
+      }
+    >
       <AnimatePresence>
         {bubble && (
           <motion.div
@@ -55,7 +65,7 @@ export const Mascot: React.FC<MascotProps> = ({ state, trigger, theme, language 
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.9 }}
             transition={{ duration: 0.25 }}
-            className={`absolute -top-9 right-1 px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap shadow-lg ${
+            className={`absolute -top-9 right-1 z-20 px-2.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap shadow-lg ${
               isDark ? 'bg-zinc-800 text-white border border-zinc-700' : 'bg-white text-zinc-800 border border-zinc-200'
             }`}
           >
@@ -68,7 +78,9 @@ export const Mascot: React.FC<MascotProps> = ({ state, trigger, theme, language 
         key={trigger}
         animate={bodyAnimate}
         transition={bodyTransition}
-        className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-teal-400 to-fuchsia-400 shadow-lg shadow-teal-500/30 border-[3px] border-white/30"
+        className={`relative rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-teal-400 to-fuchsia-400 shadow-lg shadow-teal-500/30 border-[3px] border-white/30 ${
+          inline ? 'w-8 h-8 sm:w-10 sm:h-10' : 'w-12 h-12 sm:w-14 sm:h-14'
+        }`}
       >
         <img
           src={maldimaldiImg}
@@ -82,7 +94,9 @@ export const Mascot: React.FC<MascotProps> = ({ state, trigger, theme, language 
         {state !== 'idle' && (
           <span
             key={`badge-${state}-${trigger}`}
-            className="absolute -bottom-0.5 -right-0.5 text-sm sm:text-base leading-none drop-shadow"
+            className={`absolute -bottom-0.5 -right-0.5 leading-none drop-shadow ${
+              inline ? 'text-xs' : 'text-sm sm:text-base'
+            }`}
           >
             {FACES[state]}
           </span>

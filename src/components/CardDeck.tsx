@@ -7,6 +7,7 @@ import { Layers, Plus, Sparkles } from 'lucide-react';
 import { getTranslation } from '../utils/i18n';
 import { DragPayload, getDragPayload, setDragPayload, subscribeDragPayload } from '../utils/dragState';
 import { getCardWatermark, getThemeBaseCardClass, isRedPokerSuit } from '../utils/cardThemes';
+import { Mascot, MascotState } from './Mascot';
 
 interface CardDeckProps {
   cards: CardItem[];
@@ -21,6 +22,8 @@ interface CardDeckProps {
   aura?: ThemeAura;
   enableMicroHaptics?: boolean;
   cardTheme?: CardTheme;
+  mascotState: MascotState;
+  mascotTrigger: number;
 }
 
 export const CardDeck: React.FC<CardDeckProps> = ({
@@ -35,6 +38,8 @@ export const CardDeck: React.FC<CardDeckProps> = ({
   target,
   enableMicroHaptics = true,
   cardTheme = 'neo',
+  mascotState,
+  mascotTrigger,
 }) => {
   const isDark = theme === 'dark';
   const t = getTranslation(language);
@@ -225,7 +230,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
     <div className="w-full max-w-3xl mx-auto px-4 mb-4">
       {/* Visual Instruction & Selected Status */}
       <div className="flex items-center justify-between mb-2.5 px-2">
-        <div className="flex items-center gap-2 text-sm font-bold text-zinc-400">
+        <div className="flex items-center gap-2 text-base font-bold text-zinc-400">
           <div className="flex items-center gap-1.5">
             <Layers className="w-4 h-4 text-teal-400" />
             <span>
@@ -235,10 +240,14 @@ export const CardDeck: React.FC<CardDeckProps> = ({
             </span>
           </div>
 
+          {/* 마디마디 mascot, anchored here instead of floating over the corner of the
+              whole screen — this section is where it's most relevant to the player. */}
+          <Mascot state={mascotState} trigger={mascotTrigger} theme={theme} language={language} inline />
+
           {/* Quick Color Legend */}
           {cards.some((c) => c.isComputed) && (
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-semibold border ${
                 isDark
                   ? 'bg-fuchsia-950/80 text-fuchsia-300 border-fuchsia-600/70'
                   : 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300'
@@ -256,7 +265,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
           )}
         </div>
 
-        <span className="text-xs text-zinc-500 font-medium hidden sm:inline">
+        <span className="text-sm text-zinc-500 font-medium hidden sm:inline">
           {language === 'ko' ? '단축키: 1, 2, 3, 4 ...' : 'Hotkeys: 1, 2, 3, 4 ...'}
         </span>
       </div>

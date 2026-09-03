@@ -42,7 +42,7 @@ import { getTranslation } from './utils/i18n';
 import { Navbar } from './components/Navbar';
 import { WorldBackdrop } from './components/WorldBackdrop';
 import { SceneBackground } from './components/SceneBackground';
-import { Mascot, MascotState } from './components/Mascot';
+import { MascotState } from './components/Mascot';
 import { TargetDisplay } from './components/TargetDisplay';
 import { CardDeck } from './components/CardDeck';
 import { OperatorPanel } from './components/OperatorPanel';
@@ -940,6 +940,8 @@ export default function App() {
           enableMicroHaptics={profile.enableMicroHaptics}
           language={language}
           cardTheme={cardTheme}
+          mascotState={mascotState}
+          mascotTrigger={mascotTrigger}
         />
 
         {/* Operator Dock with Live Ghost Result Preview */}
@@ -1074,8 +1076,6 @@ export default function App() {
         theme={theme}
         language={language}
       />
-
-      <Mascot state={mascotState} trigger={mascotTrigger} theme={theme} language={language} />
 
       <IntroSplash isOpen={showIntro} onFinish={dismissIntro} language={language} />
     </div>

@@ -163,7 +163,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             title={t.nav.profile}
             aria-label={t.nav.profile}
           >
-            <User className="w-4 h-4 text-teal-400" />
+            <User className="w-5 h-5 text-teal-400" />
           </motion.button>
 
           {/* Card Theme (skin) picker — poker / hwatu / monster / fairytale pastel */}
@@ -182,7 +182,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             title={language === 'ko' ? '카드 테마' : 'Card Theme'}
             aria-label={language === 'ko' ? '카드 테마' : 'Card Theme'}
           >
-            <Palette className="w-4 h-4 text-fuchsia-400" />
+            <Palette className="w-5 h-5 text-fuchsia-400" />
           </motion.button>
 
           <motion.button
@@ -200,7 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             title={t.nav.rules}
             aria-label={t.nav.rules}
           >
-            <HelpCircle className="w-4 h-4" />
+            <HelpCircle className="w-5 h-5" />
           </motion.button>
 
           <motion.button
@@ -218,7 +218,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             title={t.nav.stats}
             aria-label={t.nav.stats}
           >
-            <Trophy className="w-4 h-4" />
+            <Trophy className="w-5 h-5" />
           </motion.button>
 
           <motion.button
@@ -234,7 +234,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label={isMuted ? t.nav.soundOff : t.nav.soundOn}
             aria-pressed={isMuted}
           >
-            {isMuted ? <VolumeX className="w-4 h-4 text-zinc-500" /> : <Volume2 className="w-4 h-4 text-teal-400" />}
+            {isMuted ? <VolumeX className="w-5 h-5 text-zinc-500" /> : <Volume2 className="w-5 h-5 text-teal-400" />}
           </motion.button>
 
           <motion.button
@@ -249,7 +249,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             title={isDark ? t.nav.themeLight : t.nav.themeDark}
             aria-label={isDark ? t.nav.themeLight : t.nav.themeDark}
           >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </motion.button>
         </div>
       </div>
@@ -265,7 +265,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             sound.playCardSelect();
             onSelectMode('classic');
           }}
-          className={`relative flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-0.5 sm:px-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors z-10 whitespace-nowrap ${
+          className={`relative flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-0.5 sm:px-2 rounded-xl text-sm sm:text-base font-semibold transition-colors z-10 whitespace-nowrap ${
             mode === 'classic'
               ? 'text-white font-bold'
               : isDark
@@ -290,7 +290,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             sound.playCardSelect();
             onSelectMode('blitz');
           }}
-          className={`relative flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-0.5 sm:px-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors z-10 whitespace-nowrap ${
+          className={`relative flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-0.5 sm:px-2 rounded-xl text-sm sm:text-base font-semibold transition-colors z-10 whitespace-nowrap ${
             mode === 'blitz'
               ? 'text-white font-bold'
               : isDark
@@ -315,7 +315,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             sound.playCardSelect();
             onSelectMode('daily');
           }}
-          className={`relative flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-0.5 sm:px-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors z-10 whitespace-nowrap ${
+          className={`relative flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-0.5 sm:px-2 rounded-xl text-sm sm:text-base font-semibold transition-colors z-10 whitespace-nowrap ${
             mode === 'daily'
               ? 'text-white font-bold'
               : isDark
@@ -341,7 +341,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             sound.playCardSelect();
             onOpenCustom();
           }}
-          className={`relative flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-0.5 sm:px-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors z-10 whitespace-nowrap ${
+          className={`relative flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-0.5 sm:px-2 rounded-xl text-sm sm:text-base font-semibold transition-colors z-10 whitespace-nowrap ${
             mode === 'custom'
               ? 'text-white font-bold'
               : isDark

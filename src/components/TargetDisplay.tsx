@@ -115,7 +115,7 @@ export const TargetDisplay: React.FC<TargetDisplayProps> = ({
             <span className={`p-1.5 rounded-xl ${isDark ? 'bg-teal-500/20 text-teal-400' : 'bg-teal-50 text-teal-600'}`}>
               <Target className="w-4 h-4" />
             </span>
-            <span className="text-sm font-black uppercase tracking-wider text-teal-400">
+            <span className="text-base font-black uppercase tracking-wider text-teal-400">
               {t.board.target}
             </span>
           </div>
@@ -125,7 +125,7 @@ export const TargetDisplay: React.FC<TargetDisplayProps> = ({
             {mode === 'blitz' ? (
               <div className="flex items-center gap-2">
                 <div
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-mono-num font-extrabold ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-base font-mono-num font-extrabold ${
                     timeLeft <= 15
                       ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse'
                       : isDark
@@ -138,7 +138,7 @@ export const TargetDisplay: React.FC<TargetDisplayProps> = ({
                 </div>
 
                 <div
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-mono-num font-extrabold ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-base font-mono-num font-extrabold ${
                     isDark ? 'bg-zinc-800 text-zinc-200 border border-zinc-700' : 'bg-zinc-100 text-zinc-800 border border-zinc-200'
                   }`}
                 >
@@ -157,7 +157,7 @@ export const TargetDisplay: React.FC<TargetDisplayProps> = ({
               <div className="flex items-center gap-2">
                 {diff !== null && diff > 0 && diff <= 50 && (
                   <div
-                    className={`hidden sm:flex items-center gap-1 px-2.5 py-0.5 rounded-full text-sm font-semibold ${
+                    className={`hidden sm:flex items-center gap-1 px-2.5 py-0.5 rounded-full text-base font-semibold ${
                       isDark ? 'bg-zinc-800/80 text-zinc-300 border border-zinc-700' : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
                     }`}
                   >
@@ -167,7 +167,7 @@ export const TargetDisplay: React.FC<TargetDisplayProps> = ({
                 )}
 
                 <div
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-mono-num font-bold ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-base font-mono-num font-bold ${
                     isDark ? 'bg-zinc-800/90 text-zinc-300 border border-zinc-700' : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
                   }`}
                 >
