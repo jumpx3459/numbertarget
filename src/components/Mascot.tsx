@@ -1,7 +1,12 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import maldimaldiImg from '../assets/maldimaldi.jpg';
 
 export type MascotState = 'idle' | 'happy' | 'sad' | 'win';
+
+/** The mascot's name, shown nowhere in the UI text yet but kept here as the single
+ * place to reference it (alt text, future dialogue) if it needs to change. */
+export const MASCOT_NAME = '마디마디';
 
 interface MascotProps {
   state: MascotState;
@@ -63,9 +68,25 @@ export const Mascot: React.FC<MascotProps> = ({ state, trigger, theme, language 
         key={trigger}
         animate={bodyAnimate}
         transition={bodyTransition}
-        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-2xl sm:text-3xl bg-gradient-to-br from-teal-400 to-fuchsia-400 shadow-lg shadow-teal-500/30 border-[3px] border-white/30"
+        className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-teal-400 to-fuchsia-400 shadow-lg shadow-teal-500/30 border-[3px] border-white/30"
       >
-        <span>{FACES[state]}</span>
+        <img
+          src={maldimaldiImg}
+          alt={MASCOT_NAME}
+          className="w-full h-full object-cover object-[center_20%] scale-125"
+          draggable={false}
+        />
+
+        {/* Small emoji sticker on top of the character for an at-a-glance emotion cue —
+            keeps 마디마디 visually consistent across states instead of swapping faces. */}
+        {state !== 'idle' && (
+          <span
+            key={`badge-${state}-${trigger}`}
+            className="absolute -bottom-0.5 -right-0.5 text-sm sm:text-base leading-none drop-shadow"
+          >
+            {FACES[state]}
+          </span>
+        )}
       </motion.div>
     </div>
   );

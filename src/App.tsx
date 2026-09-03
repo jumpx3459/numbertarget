@@ -53,6 +53,7 @@ import { StatsModal } from './components/StatsModal';
 import { CustomGameModal } from './components/CustomGameModal';
 import { RulesModal } from './components/RulesModal';
 import { OnboardingModal } from './components/OnboardingModal';
+import { IntroSplash } from './components/IntroSplash';
 import { SolutionModal } from './components/SolutionModal';
 import { CardThemeModal } from './components/CardThemeModal';
 
@@ -79,6 +80,25 @@ export default function App() {
   // User Profile & Customization state
   const [profile, setProfile] = useState<UserProfile>(() => loadUserProfile());
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => !profile.hasCompletedOnboarding);
+
+  // 마디마디 intro splash — plays once per browser tab (sessionStorage, not
+  // localStorage) so it greets you again on a fresh visit but doesn't replay every
+  // time you start a new puzzle within the same session.
+  const [showIntro, setShowIntro] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('number_target_intro_seen_v1') !== 'true';
+    } catch {
+      return true;
+    }
+  });
+  const dismissIntro = useCallback(() => {
+    setShowIntro(false);
+    try {
+      sessionStorage.setItem('number_target_intro_seen_v1', 'true');
+    } catch {
+      // Ignore — worst case the intro plays again next time.
+    }
+  }, []);
 
   // Persistence states
   const [stats, setStats] = useState<GameStats>(() => {
@@ -1056,6 +1076,8 @@ export default function App() {
       />
 
       <Mascot state={mascotState} trigger={mascotTrigger} theme={theme} language={language} />
+
+      <IntroSplash isOpen={showIntro} onFinish={dismissIntro} language={language} />
     </div>
   );
 }
