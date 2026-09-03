@@ -51,11 +51,13 @@
 
 .neo-card-hover:hover {
   transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 16px 36px -12px rgba(99, 102, 241, 0.35), 0 0 0 1.5px rgba(129, 140, 248, 0.4);
+  /* Teal glow + fuchsia ring — matches the app's teal→fuchsia brand gradient
+     instead of an unrelated indigo/violet accent. */
+  box-shadow: 0 16px 36px -12px rgba(20, 184, 166, 0.35), 0 0 0 1.5px rgba(232, 121, 249, 0.45);
 }
 
 .neo-card-active {
   transform: translateY(-2px) scale(1.04);
-  box-shadow: 0 12px 28px -8px rgba(99, 102, 241, 0.45), 0 0 0 2px rgba(129, 140, 248, 0.8);
+  box-shadow: 0 12px 28px -8px rgba(20, 184, 166, 0.45), 0 0 0 2px rgba(232, 121, 249, 0.85);
 }
 

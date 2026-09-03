@@ -255,7 +255,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {mode === 'classic' && (
             <motion.div
               layoutId="activeModePill"
-              className="absolute inset-0 bg-gradient-to-r from-teal-600 to-teal-500 rounded-xl shadow-md shadow-teal-600/30 -z-10"
+              className="absolute inset-0 bg-gradient-to-r from-teal-600 to-fuchsia-600 rounded-xl shadow-md shadow-teal-600/30 -z-10"
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             />
           )}
@@ -280,7 +280,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {mode === 'blitz' && (
             <motion.div
               layoutId="activeModePill"
-              className="absolute inset-0 bg-gradient-to-r from-amber-600 to-orange-500 rounded-xl shadow-md shadow-orange-500/30 -z-10"
+              className="absolute inset-0 bg-gradient-to-r from-teal-600 to-fuchsia-600 rounded-xl shadow-md shadow-teal-600/30 -z-10"
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             />
           )}
@@ -305,7 +305,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {mode === 'daily' && (
             <motion.div
               layoutId="activeModePill"
-              className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-500 rounded-xl shadow-md shadow-teal-500/30 -z-10"
+              className="absolute inset-0 bg-gradient-to-r from-teal-600 to-fuchsia-600 rounded-xl shadow-md shadow-teal-600/30 -z-10"
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             />
           )}
@@ -331,7 +331,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {mode === 'custom' && (
             <motion.div
               layoutId="activeModePill"
-              className="absolute inset-0 bg-gradient-to-r from-pink-600 to-rose-500 rounded-xl shadow-md shadow-pink-500/30 -z-10"
+              className="absolute inset-0 bg-gradient-to-r from-teal-600 to-fuchsia-600 rounded-xl shadow-md shadow-teal-600/30 -z-10"
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             />
           )}
