@@ -299,10 +299,20 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                 {/* 1. Tactile Number Card */}
                 <motion.div
                   layout
-                  initial={{ scale: 0.5, opacity: 0, y: 20, rotate: idx % 2 === 0 ? -6 : 6 }}
-                  animate={{ scale: 1, opacity: 1, y: 0, rotate: 0 }}
-                  exit={{ scale: 0.6, opacity: 0 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 17, delay: Math.min(idx * 0.05, 0.3) }}
+                  initial={{ scale: 0.4, opacity: 0, y: -160, rotate: idx % 2 === 0 ? -10 : 10 }}
+                  animate={{
+                    scale: [0.4, 1.08, 0.96, 1],
+                    opacity: 1,
+                    y: [-160, 0, -10, 0],
+                    rotate: 0,
+                  }}
+                  exit={{ scale: 0.6, opacity: 0, y: 12 }}
+                  transition={{
+                    duration: isComputed ? 0.65 : 0.55,
+                    times: [0, 0.55, 0.8, 1],
+                    ease: 'easeOut',
+                    delay: Math.min(idx * 0.06, 0.35),
+                  }}
                   whileHover={
                     enableMicroHaptics && !disabled
                       ? { y: -4, scale: 1.03, transition: { type: 'spring', stiffness: 400, damping: 17 } }
@@ -379,6 +389,25 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                       : 'Click to select or drag to combine with another card'
                   }
                 >
+                  {/* Landing Impact Glow — a brief expanding ring timed to the moment the
+                      card touches down (parent delay + duration*0.55), only for computed
+                      result cards, using the same fuchsia tone as their card face. */}
+                  {isComputed && (
+                    <motion.span
+                      aria-hidden="true"
+                      className={`pointer-events-none absolute inset-0 m-auto z-0 w-3/4 h-3/4 rounded-full border-4 ${
+                        isDark ? 'border-fuchsia-400' : 'border-fuchsia-500'
+                      }`}
+                      initial={{ scale: 0, opacity: 0.6 }}
+                      animate={{ scale: 1.8, opacity: 0 }}
+                      transition={{
+                        duration: 0.35,
+                        ease: 'easeOut',
+                        delay: Math.min(idx * 0.06, 0.35) + 0.65 * 0.55,
+                      }}
+                    />
+                  )}
+
                   {/* Decorative Theme Corner Mark — a small, real-card-style corner glyph
                       rather than a giant background watermark (an earlier version filled
                       the whole card and read as a smudge, not a design). Tucked into the
