@@ -21,6 +21,7 @@ import {
 import { UserProfile, ThemeAura, SoundFlavor, Difficulty, Language } from '../types';
 import { sound } from '../utils/audio';
 import { getTranslation } from '../utils/i18n';
+import forestBg from '../assets/maldimaldi-forest-bg.jpg';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -289,13 +290,17 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const currentAura = auras.find((a) => a.id === aura) || auras[0];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${forestBg})` }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80 backdrop-blur-md" />
       <motion.div
         initial={{ opacity: 0, scale: 0.94, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
         transition={{ type: 'spring', damping: 25, stiffness: 320 }}
-        className={`w-full max-w-xl max-h-[92vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden relative ${
+        className={`w-full max-w-xl max-h-[92vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden relative z-10 ${
           isDark
             ? 'bg-zinc-950 border-zinc-800/90 text-white shadow-black/80'
             : 'bg-white border-zinc-200 text-zinc-900 shadow-xl'
