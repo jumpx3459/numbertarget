@@ -4,6 +4,7 @@ import { GameMode, HistoryStep, Language } from '../types';
 import { Trophy, Star, Share2, ArrowRight, RotateCw } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { getTranslation } from '../utils/i18n';
+import { useModalA11y } from '../hooks/useModalA11y';
 
 interface VictoryModalProps {
   isOpen: boolean;
@@ -15,6 +16,10 @@ interface VictoryModalProps {
   history: HistoryStep[];
   onNextGame: () => void;
   onReplay: () => void;
+  /** Dismiss without starting a new game (ESC). The board stays in its solved state. */
+  onClose?: () => void;
+  /** Mirrors UserProfile.enableConfetti. */
+  enableConfetti?: boolean;
   theme: 'dark' | 'light';
   language?: Language;
   score?: number;
@@ -35,6 +40,8 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   mode,
   onNextGame,
   onReplay,
+  onClose,
+  enableConfetti = true,
   theme,
   language = 'ko',
   dailyPuzzleNumber,
@@ -44,31 +51,39 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   const isDark = theme === 'dark';
   const t = getTranslation(language);
 
+  const panelRef = useModalA11y(isOpen, onClose);
+
   useEffect(() => {
-    if (isOpen) {
-      sound.playVictory();
-      // Confetti burst
+    if (!isOpen) return;
+    sound.playVictory();
+    if (!enableConfetti) return;
+    // Confetti burst (canvas-confetti also skips it for prefers-reduced-motion users)
+    confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#14b8a6', '#d946ef', '#ec4899', '#10b981', '#f59e0b'],
+      disableForReducedMotion: true,
+    });
+    const sideBurst = window.setTimeout(() => {
       confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#14b8a6', '#d946ef', '#ec4899', '#10b981', '#f59e0b'],
+        particleCount: 50,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        disableForReducedMotion: true,
       });
-      setTimeout(() => {
-        confetti({
-          particleCount: 50,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 },
-        });
-        confetti({
-          particleCount: 50,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1 },
-        });
-      }, 250);
-    }
+      confetti({
+        particleCount: 50,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        disableForReducedMotion: true,
+      });
+    }, 250);
+    return () => window.clearTimeout(sideBurst);
+    // Only fire on open; toggling the setting mid-celebration shouldn't re-fire it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -151,7 +166,12 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div
-        className={`w-full max-w-md rounded-3xl p-6 md:p-8 border shadow-2xl relative overflow-hidden transition-all scale-100 ${
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="victory-modal-title"
+        tabIndex={-1}
+        className={`w-full max-w-md max-h-[92vh] overflow-y-auto rounded-3xl p-6 md:p-8 border shadow-2xl relative transition-all scale-100 ${
           isDark
             ? 'bg-zinc-900/95 border-zinc-800 text-white'
             : 'bg-white border-zinc-100 text-zinc-900'
@@ -166,7 +186,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
             <Trophy className="w-9 h-9 text-white" />
           </div>
 
-          <h2 className="font-display text-2xl md:text-3xl font-black tracking-tight">
+          <h2 id="victory-modal-title" className="font-display text-2xl md:text-3xl font-black tracking-tight">
             {t.victory.title}
           </h2>
           <p className={`text-xs mt-1 font-medium ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>

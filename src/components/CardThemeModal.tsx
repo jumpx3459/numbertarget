@@ -2,6 +2,7 @@ import React from 'react';
 import { Palette, X, Check } from 'lucide-react';
 import { CardTheme, Language } from '../types';
 import { sound } from '../utils/audio';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { CARD_THEMES, getCardWatermark, getThemeBaseCardClass, isRedPokerSuit } from '../utils/cardThemes';
 
 interface CardThemeModalProps {
@@ -23,11 +24,18 @@ export const CardThemeModal: React.FC<CardThemeModalProps> = ({
 }) => {
   const isDark = theme === 'dark';
 
+  const panelRef = useModalA11y(isOpen, onClose);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="card-theme-modal-title"
+        tabIndex={-1}
         className={`w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl p-6 border shadow-2xl relative transition-all ${
           isDark ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-zinc-200 text-zinc-900'
         }`}
@@ -39,7 +47,7 @@ export const CardThemeModal: React.FC<CardThemeModalProps> = ({
               <Palette className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-display font-extrabold text-lg">
+              <h3 id="card-theme-modal-title" className="font-display font-extrabold text-lg">
                 {language === 'ko' ? '카드 테마' : 'Card Theme'}
               </h3>
               <p className={`text-[11px] ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
@@ -55,6 +63,7 @@ export const CardThemeModal: React.FC<CardThemeModalProps> = ({
               sound.playCardDeselect();
               onClose();
             }}
+            aria-label={language === 'ko' ? '닫기' : 'Close'}
             className={`p-1.5 rounded-lg transition-colors ${
               isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-zinc-500 hover:bg-zinc-100'
             }`}

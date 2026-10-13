@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   Sparkles,
   Zap,
@@ -284,6 +285,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     onClose();
   };
 
+  const panelRef = useModalA11y(isOpen, onClose);
+
   if (!isOpen) return null;
 
   const currentArchetype = archetypes.find((a) => a.id === archetype) || archetypes[1];
@@ -296,6 +299,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     >
       <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80 backdrop-blur-md" />
       <motion.div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-modal-title"
+        tabIndex={-1}
         initial={{ opacity: 0, scale: 0.94, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -317,7 +325,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               >
                 {step}
               </span>
-              <h2 className="font-display font-black text-lg sm:text-xl tracking-tight">
+              <h2 id="onboarding-modal-title" className="font-display font-black text-lg sm:text-xl tracking-tight">
                 {step === 1 && (language === 'ko' ? '플레이어 정체성 설정' : 'Player Identity Setup')}
                 {step === 2 && (language === 'ko' ? '30초 인터랙티브 튜토리얼' : 'Interactive Tutorial')}
                 {step === 3 && (language === 'ko' ? '게임 환경 & 사운드 설정' : 'Game Preferences & Sound')}
@@ -334,6 +342,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 isDark ? 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800' : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100'
               }`}
               title={language === 'ko' ? '건너뛰기' : 'Skip'}
+              aria-label={language === 'ko' ? '건너뛰기' : 'Skip'}
             >
               <X className="w-5 h-5" />
             </button>

@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { SolutionStep, CardItem, CategorizedSolution, Language } from '../types';
-import { findAllDistinctSolutions } from '../utils/gameLogic';
+import { useSolverSolutions } from '../utils/solverClient';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   CheckCircle2,
   Play,
@@ -18,6 +19,7 @@ import {
   Undo2,
   Dices,
   HelpCircle,
+  Loader2,
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { getTranslation } from '../utils/i18n';
@@ -30,7 +32,9 @@ interface SolutionModalProps {
   currentCards: CardItem[];
   solution?: SolutionStep[];
   allSolutions?: CategorizedSolution[];
-  onApplyFullSolution?: (steps: SolutionStep[]) => void;
+  /** `source` says which board the steps were computed from: the puzzle's starting
+   * cards ('initial') or the cards currently on the board ('current'). */
+  onApplyFullSolution?: (steps: SolutionStep[], source: 'initial' | 'current') => void;
   onResetBoard?: () => void;
   onUndo?: () => void;
   onNewGame?: () => void;
@@ -62,11 +66,26 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
   const [activeSolutionIdx, setActiveSolutionIdx] = useState<number>(0);
   const [sourceTab, setSourceTab] = useState<'initial' | 'current'>('initial');
 
+  const panelRef = useModalA11y(isOpen, onClose);
+
+  // Start every opening from the default view rather than wherever it was left.
+  useEffect(() => {
+    if (!isOpen) return;
+    setSourceTab('initial');
+    setSelectedCategory('all');
+    setActiveSolutionIdx(0);
+  }, [isOpen]);
+
+  // Searches only run while the modal is open, in a Web Worker (see solverClient).
+  // Generated puzzles already carry `allSolutions`, so the initial search is only
+  // needed for custom/shared puzzles.
+  const hasPrecomputed = !!allSolutions && allSolutions.length > 0;
+  const initialSearch = useSolverSolutions(initialCards, target, 12, isOpen && !hasPrecomputed, solution);
+
   // Compute all available solutions with guaranteed fallback
-  const initialAllSolutions = useMemo(() => {
+  const initialAllSolutions = useMemo((): CategorizedSolution[] => {
     if (allSolutions && allSolutions.length > 0) return allSolutions;
-    const computed = findAllDistinctSolutions(initialCards, target, 12, solution);
-    if (computed.length > 0) return computed;
+    if (initialSearch.solutions.length > 0) return initialSearch.solutions;
     if (solution && solution.length > 0) {
       return [
         {
@@ -83,17 +102,17 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
       ];
     }
     return [];
-  }, [allSolutions, initialCards, target, solution, language]);
+  }, [allSolutions, initialSearch.solutions, solution, language]);
 
   const currentCardValues = useMemo(() => currentCards.map((c) => c.value), [currentCards]);
-  const currentAllSolutions = useMemo(() => {
-    return findAllDistinctSolutions(currentCardValues, target, 8);
-  }, [currentCardValues, target]);
+  const currentSearch = useSolverSolutions(currentCardValues, target, 8, isOpen);
+  const currentAllSolutions = currentSearch.solutions;
 
   if (!isOpen) return null;
 
   const activeSolutionList =
     sourceTab === 'current' ? currentAllSolutions : initialAllSolutions;
+  const isSearching = sourceTab === 'current' ? currentSearch.loading : initialSearch.loading;
 
   // Filter solutions by operator categories
   const filteredSolutions = activeSolutionList.filter((sol) => {
@@ -167,16 +186,18 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
   const handleExecuteSolution = (steps: SolutionStep[]) => {
     if (!onApplyFullSolution) return;
     sound.playMerge();
-    if (sourceTab === 'initial' && onResetBoard) {
-      onResetBoard();
-    }
-    onApplyFullSolution(steps);
+    onApplyFullSolution(steps, sourceTab);
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <motion.div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="solution-modal-title"
+        tabIndex={-1}
         initial={{ scale: 0.92, opacity: 0, y: 15 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.92, opacity: 0 }}
@@ -193,11 +214,15 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-display font-extrabold text-lg sm:text-xl">
+                <h3 id="solution-modal-title" className="font-display font-extrabold text-lg sm:text-xl">
                   {language === 'ko' ? '연산자별 다각도 정답 탐색' : 'Multi-Operator Solution Explorer'}
                 </h3>
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  {activeSolutionList.length} {language === 'ko' ? '개 공식 발견' : 'found'}
+                <span
+                  className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 ${
+                    isDark ? 'text-emerald-300' : 'text-emerald-700'
+                  }`}
+                >
+                  {isSearching ? '…' : activeSolutionList.length} {language === 'ko' ? '개 공식 발견' : 'found'}
                 </span>
               </div>
               <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
@@ -213,6 +238,7 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
               sound.playCardDeselect();
               onClose();
             }}
+            aria-label={language === 'ko' ? '닫기' : 'Close'}
             className={`p-1.5 rounded-xl transition-colors ${
               isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-zinc-500 hover:bg-zinc-100'
             }`}
@@ -265,7 +291,11 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
         </div>
 
         {/* Mode Switch: Initial Game vs Current Live State */}
-        <div className="flex rounded-xl p-1 mb-2.5 bg-zinc-950/50 border border-zinc-800 shrink-0">
+        <div
+          className={`flex rounded-xl p-1 mb-2.5 border shrink-0 ${
+            isDark ? 'bg-zinc-950/50 border-zinc-800' : 'bg-zinc-100 border-zinc-200'
+          }`}
+        >
           <button
             onClick={() => {
               sound.playCardSelect();
@@ -275,14 +305,16 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
             className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
               sourceTab === 'initial'
                 ? 'bg-teal-600 text-white shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
+                : isDark
+                ? 'text-zinc-400 hover:text-zinc-200'
+                : 'text-zinc-500 hover:text-zinc-800'
             }`}
           >
             <Brain className="w-3.5 h-3.5" />
             <span>
               {language === 'ko'
-                ? `처음 카드 기준 해법 (${initialAllSolutions.length})`
-                : `From Start Cards (${initialAllSolutions.length})`}
+                ? `처음 카드 기준 해법 (${initialSearch.loading ? '…' : initialAllSolutions.length})`
+                : `From Start Cards (${initialSearch.loading ? '…' : initialAllSolutions.length})`}
             </span>
           </button>
           <button
@@ -294,14 +326,16 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
             className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
               sourceTab === 'current'
                 ? 'bg-teal-600 text-white shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
+                : isDark
+                ? 'text-zinc-400 hover:text-zinc-200'
+                : 'text-zinc-500 hover:text-zinc-800'
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>
               {language === 'ko'
-                ? `현재 남은 카드 기준 (${currentAllSolutions.length})`
-                : `From Current Cards (${currentAllSolutions.length})`}
+                ? `현재 남은 카드 기준 (${currentSearch.loading ? '…' : currentAllSolutions.length})`
+                : `From Current Cards (${currentSearch.loading ? '…' : currentAllSolutions.length})`}
             </span>
           </button>
         </div>
@@ -333,7 +367,7 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
                 <span>{f.label}</span>
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono-num font-black ${
-                    isSelected ? 'bg-black/30 text-white' : 'bg-zinc-700 text-zinc-300'
+                    isSelected ? 'bg-black/30 text-white' : isDark ? 'bg-zinc-700 text-zinc-300' : 'bg-zinc-300 text-zinc-700'
                   }`}
                 >
                   {f.count}
@@ -345,7 +379,17 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
 
         {/* Solution Content Area (Scrollable) */}
         <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-3 min-h-0">
-          {filteredSolutions.length > 0 ? (
+          {isSearching ? (
+            <div
+              role="status"
+              className={`p-6 rounded-3xl border flex items-center justify-center gap-2 text-sm font-bold ${
+                isDark ? 'bg-zinc-950/70 border-zinc-800 text-zinc-300' : 'bg-zinc-50 border-zinc-200 text-zinc-600'
+              }`}
+            >
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>{language === 'ko' ? '정답을 탐색하는 중…' : 'Searching for solutions…'}</span>
+            </div>
+          ) : filteredSolutions.length > 0 ? (
             <>
               {/* Solution Picker if multiple in category */}
               {filteredSolutions.length > 1 && (
@@ -388,14 +432,14 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-zinc-800/80">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm sm:text-base font-extrabold text-white">
+                        <h4 className={`text-sm sm:text-base font-extrabold ${isDark ? 'text-white' : 'text-zinc-900'}`}>
                           {selectedSol.title}
                         </h4>
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${selectedSol.badgeColor}`}>
                           {selectedSol.stepCount} {language === 'ko' ? '단계 풀이' : 'Steps'}
                         </span>
                       </div>
-                      <p className="text-xs text-zinc-400 mt-0.5">{selectedSol.description}</p>
+                      <p className={`text-xs mt-0.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>{selectedSol.description}</p>
                     </div>
 
                     {/* Used Operator Symbols */}
@@ -406,7 +450,9 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
                       {selectedSol.usedOps.map((opKey, oIdx) => (
                         <span
                           key={oIdx}
-                          className="px-2 py-0.5 rounded-lg text-xs font-mono-num font-extrabold bg-teal-500/20 text-teal-300 border border-teal-500/30"
+                          className={`px-2 py-0.5 rounded-lg text-xs font-mono-num font-extrabold bg-teal-500/20 border border-teal-500/30 ${
+                            isDark ? 'text-teal-300' : 'text-teal-700'
+                          }`}
                         >
                           {opKey}
                         </span>
@@ -433,10 +479,10 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
                             {sIdx + 1}
                           </span>
                           <div>
-                            <div className="font-mono-num font-bold text-sm tracking-wide text-white">
+                            <div className={`font-mono-num font-bold text-sm tracking-wide ${isDark ? 'text-white' : 'text-zinc-900'}`}>
                               {step.explanation}
                             </div>
-                            <span className="text-[10px] text-zinc-400">
+                            <span className={`text-[10px] ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
                               {step.type === 'binary'
                                 ? (language === 'ko' ? `이항 연산 (${step.opLabel})` : `Binary Op (${step.opLabel})`)
                                 : (language === 'ko' ? `단항 연산 (${step.opLabel})` : `Unary Op (${step.opLabel})`)}
@@ -498,7 +544,7 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
               <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto mb-3">
                 <HelpCircle className="w-6 h-6" />
               </div>
-              <h4 className="text-base font-extrabold text-white mb-1">
+              <h4 className={`text-base font-extrabold mb-1 ${isDark ? 'text-white' : 'text-zinc-900'}`}>
                 {sourceTab === 'current'
                   ? (language === 'ko'
                       ? '현재 남은 카드로는 목표 숫자에 도달할 수 없습니다'
@@ -507,7 +553,7 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
                       ? '선택한 연산자 필터에 해당하는 정답이 없거나 막다른 길입니다'
                       : 'No solution matches this filter or reached a dead end')}
               </h4>
-              <p className="text-xs text-zinc-400 max-w-md mx-auto mb-5 leading-relaxed">
+              <p className={`text-xs max-w-md mx-auto mb-5 leading-relaxed ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
                 {sourceTab === 'current'
                   ? (language === 'ko'
                       ? '진행 중인 연산으로 인해 막다른 길(Dead-end)에 도달했습니다. 아래 해결 방법 중 하나를 선택해 다시 도전해보세요!'
@@ -573,7 +619,13 @@ export const SolutionModal: React.FC<SolutionModalProps> = ({
         <div className="flex items-center justify-between pt-3 mt-2 border-t border-zinc-800/60 shrink-0">
           <span className="text-[11px] text-zinc-500 font-medium">
             💡 {language === 'ko' ? '단축키: ' : 'Shortcut: '}
-            <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono">A</kbd>{' '}
+            <kbd
+              className={`px-1.5 py-0.5 rounded font-mono ${
+                isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-200 text-zinc-700'
+              }`}
+            >
+              A
+            </kbd>{' '}
             {language === 'ko' ? '로 정답창 열기' : 'to open Solution Explorer'}
           </span>
 
