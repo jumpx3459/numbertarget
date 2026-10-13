@@ -321,11 +321,14 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                   whileTap={enableMicroHaptics && !disabled ? { scale: 0.96 } : undefined}
                   draggable={!disabled}
                   onDragStart={(e) => {
+                    // motion types onDragStart as its pan gesture, but with `draggable` set (and no
+                    // `drag` prop) motion forwards the native HTML5 dragstart event, so this is a DragEvent.
+                    const { dataTransfer } = e as unknown as React.DragEvent<HTMLDivElement>;
                     const payload: DragPayload = { type: 'card', cardId: card.id, value: card.value };
                     setDragPayload(payload);
-                    e.dataTransfer.setData('text/plain', JSON.stringify(payload));
-                    e.dataTransfer.setData('application/json', JSON.stringify(payload));
-                    e.dataTransfer.effectAllowed = 'copyMove';
+                    dataTransfer.setData('text/plain', JSON.stringify(payload));
+                    dataTransfer.setData('application/json', JSON.stringify(payload));
+                    dataTransfer.effectAllowed = 'copyMove';
                   }}
                   onDragEnd={() => {
                     setDragPayload(null);

@@ -230,12 +230,15 @@ export const OperatorPanel: React.FC<OperatorPanelProps> = ({
                   key={op.key}
                   draggable={!disabled}
                   onDragStart={(e) => {
+                    // motion types onDragStart as its pan gesture, but with `draggable` set (and no
+                    // `drag` prop) motion forwards the native HTML5 dragstart event, so this is a DragEvent.
+                    const { dataTransfer } = e as unknown as React.DragEvent<HTMLDivElement>;
                     setDraggingOpKey(op.key);
                     const payload = { type: 'binary' as const, key: op.key, label: op.label, symbol: op.symbol };
                     setDragPayload(payload);
-                    e.dataTransfer.setData('text/plain', JSON.stringify(payload));
-                    e.dataTransfer.setData('application/json', JSON.stringify(payload));
-                    e.dataTransfer.effectAllowed = 'copyMove';
+                    dataTransfer.setData('text/plain', JSON.stringify(payload));
+                    dataTransfer.setData('application/json', JSON.stringify(payload));
+                    dataTransfer.effectAllowed = 'copyMove';
                   }}
                   onDragEnd={() => {
                     setDraggingOpKey(null);
@@ -338,12 +341,15 @@ export const OperatorPanel: React.FC<OperatorPanelProps> = ({
                   key={op.key}
                   draggable={!disabled}
                   onDragStart={(e) => {
+                    // motion types onDragStart as its pan gesture, but with `draggable` set (and no
+                    // `drag` prop) motion forwards the native HTML5 dragstart event, so this is a DragEvent.
+                    const { dataTransfer } = e as unknown as React.DragEvent<HTMLDivElement>;
                     setDraggingOpKey(op.key);
                     const payload = { type: 'unary' as const, key: op.key, label: op.label, symbol: op.symbol };
                     setDragPayload(payload);
-                    e.dataTransfer.setData('text/plain', JSON.stringify(payload));
-                    e.dataTransfer.setData('application/json', JSON.stringify(payload));
-                    e.dataTransfer.effectAllowed = 'copyMove';
+                    dataTransfer.setData('text/plain', JSON.stringify(payload));
+                    dataTransfer.setData('application/json', JSON.stringify(payload));
+                    dataTransfer.effectAllowed = 'copyMove';
                   }}
                   onDragEnd={() => {
                     setDraggingOpKey(null);
