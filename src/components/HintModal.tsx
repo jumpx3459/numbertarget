@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CardItem, SolutionStep, Language } from '../types';
-import { solvePuzzle } from '../utils/gameLogic';
-import { Lightbulb, X, Sparkles, CheckCircle2 } from 'lucide-react';
+import { useSolverSolutions } from '../utils/solverClient';
+import { useModalA11y } from '../hooks/useModalA11y';
+import { Lightbulb, X, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { getTranslation } from '../utils/i18n';
 
@@ -10,8 +11,6 @@ interface HintModalProps {
   onClose: () => void;
   cards: CardItem[];
   target: number;
-  initialCards?: number[];
-  initialSolution?: SolutionStep[];
   onOpenFullSolution?: () => void;
   theme: 'dark' | 'light';
   language?: Language;
@@ -22,8 +21,6 @@ export const HintModal: React.FC<HintModalProps> = ({
   onClose,
   cards,
   target,
-  initialCards,
-  initialSolution,
   onOpenFullSolution,
   theme,
   language = 'ko',
@@ -32,19 +29,40 @@ export const HintModal: React.FC<HintModalProps> = ({
   const isDark = theme === 'dark';
   const t = getTranslation(language);
 
-  if (!isOpen) return null;
+  const panelRef = useModalA11y(isOpen, onClose);
 
-  // Dynamically find solution from current cards state
-  const currentCardValues = cards.map((c) => c.value);
-  const currentSolution = solvePuzzle(currentCardValues, target, 6) || initialSolution;
+  // Each opening starts again from the gentlest hint.
+  useEffect(() => {
+    if (isOpen) setHintLevel(1);
+  }, [isOpen]);
 
-  // Fallback to initial solution if current cards cannot solve
-  const displaySolution = currentSolution || initialSolution;
+  // Hints are always for the cards currently on the board. There's deliberately no
+  // fallback to the puzzle's initial solution: its steps reference cards that may
+  // already have been merged away, which made the hint point at numbers not on the board.
+  const currentCardValues = useMemo(() => cards.map((c) => c.value), [cards]);
+  const isAlreadySolved = currentCardValues.length === 1 && currentCardValues[0] === target;
+  const { solutions, loading } = useSolverSolutions(
+    isAlreadySolved ? null : currentCardValues,
+    target,
+    1,
+    isOpen
+  );
+  const displaySolution: SolutionStep[] | null = useMemo(
+    () => (solutions.length > 0 ? solutions[0].steps : null),
+    [solutions]
+  );
   const nextStep = displaySolution && displaySolution.length > 0 ? displaySolution[0] : null;
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="hint-modal-title"
+        tabIndex={-1}
         className={`w-full max-w-md rounded-3xl p-6 border shadow-2xl relative overflow-hidden transition-all ${
           isDark ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-zinc-200 text-zinc-900'
         }`}
@@ -56,7 +74,9 @@ export const HintModal: React.FC<HintModalProps> = ({
               <Lightbulb className="w-5 h-5 fill-amber-400/20" />
             </div>
             <div>
-              <h3 className="font-display font-extrabold text-lg">{t.hintModal.title}</h3>
+              <h3 id="hint-modal-title" className="font-display font-extrabold text-lg">
+                {t.hintModal.title}
+              </h3>
               <p className={`text-[11px] ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
                 {language === 'ko' ? (
                   <>
@@ -76,6 +96,7 @@ export const HintModal: React.FC<HintModalProps> = ({
               sound.playCardDeselect();
               onClose();
             }}
+            aria-label={language === 'ko' ? '닫기' : 'Close'}
             className={`p-1.5 rounded-lg transition-colors ${
               isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-zinc-500 hover:bg-zinc-100'
             }`}
@@ -85,7 +106,23 @@ export const HintModal: React.FC<HintModalProps> = ({
         </div>
 
         {/* Content based on solution availability */}
-        {nextStep ? (
+        {loading ? (
+          <div
+            role="status"
+            className={`py-8 flex items-center justify-center gap-2 text-sm font-bold ${
+              isDark ? 'text-zinc-300' : 'text-zinc-600'
+            }`}
+          >
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>{language === 'ko' ? '현재 카드로 풀이를 찾는 중…' : 'Looking for a path from your current cards…'}</span>
+          </div>
+        ) : isAlreadySolved ? (
+          <div className="text-center py-6">
+            <p className={`text-sm font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+              {language === 'ko' ? '🎉 이미 목표 숫자에 도달했습니다!' : '🎉 You already reached the target!'}
+            </p>
+          </div>
+        ) : nextStep ? (
           <div className="flex flex-col gap-3.5">
             {/* Step 1 Hint */}
             <div
@@ -153,9 +190,13 @@ export const HintModal: React.FC<HintModalProps> = ({
                     {language === 'ko' ? '연산식 공개' : 'Formula preview'}
                   </span>
                 </div>
-                <p className="text-sm font-semibold font-mono-num text-teal-300">
+                <p className={`text-sm font-semibold font-mono-num ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
                   {language === 'ko' ? '👉 다음 연산:' : '👉 Next move:'}{' '}
-                  <span className="px-2 py-0.5 rounded-lg bg-teal-500/20 border border-teal-500/40 text-white font-bold">
+                  <span
+                    className={`px-2 py-0.5 rounded-lg bg-teal-500/20 border border-teal-500/40 font-bold ${
+                      isDark ? 'text-white' : 'text-teal-900'
+                    }`}
+                  >
                     {nextStep.explanation}
                   </span>
                 </p>
@@ -236,7 +277,10 @@ export const HintModal: React.FC<HintModalProps> = ({
           </div>
         ) : (
           <div className="text-center py-6">
-            <p className="text-sm text-zinc-400">
+            <p className={`text-base font-extrabold mb-1 ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>
+              {language === 'ko' ? '풀이 없음' : 'No solution'}
+            </p>
+            <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
               {t.solutionModal.noSolutionCurrentTitle}
             </p>
             <p className="text-xs text-zinc-500 mt-1">

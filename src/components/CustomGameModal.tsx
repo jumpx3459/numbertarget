@@ -1,9 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Sliders, X, Share2, Play, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { findAllDistinctSolutions, encodeCustomPuzzle } from '../utils/gameLogic';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Sliders, X, Share2, Play, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { encodeCustomPuzzle } from '../utils/gameLogic';
+import { useSolverSolutions } from '../utils/solverClient';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { sound } from '../utils/audio';
-import { CategorizedSolution, Language } from '../types';
+import { Language } from '../types';
 import { getTranslation } from '../utils/i18n';
+
+const parseCards = (input: string) =>
+  input
+    .split(/[\s,]+/)
+    .map((n) => parseInt(n.trim(), 10))
+    .filter((n) => !isNaN(n) && n > 0);
+
+/** Delay before re-running the solvability check after the player stops typing. */
+const VALIDATION_DEBOUNCE_MS = 350;
 
 interface CustomGameModalProps {
   isOpen: boolean;
@@ -25,66 +36,83 @@ export const CustomGameModal: React.FC<CustomGameModalProps> = ({
   
   const [targetInput, setTargetInput] = useState('24');
   const [cardsInput, setCardsInput] = useState('3, 8, 4, 1');
-  const [, setSolutions] = useState<CategorizedSolution[]>([]);
-  const [validationMsg, setValidationMsg] = useState<{ type: 'ok' | 'error' | 'warn'; text: string } | null>(null);
+  // Transient notices (e.g. "link copied") override the validation message until
+  // the inputs change again.
+  const [notice, setNotice] = useState<string | null>(null);
+  const panelRef = useModalA11y(isOpen, onClose);
 
-  // Parse and validate on change
+  // Debounced copy of the inputs: the (expensive) solvability search only follows
+  // these, so typing "953" doesn't kick off searches for 9 and 95 on the way.
+  const [debounced, setDebounced] = useState({ target: targetInput, cards: cardsInput });
   useEffect(() => {
-    const target = parseInt(targetInput, 10);
-    const cards = cardsInput
-      .split(/[\s,]+/)
-      .map((n) => parseInt(n.trim(), 10))
-      .filter((n) => !isNaN(n) && n > 0);
+    const timer = window.setTimeout(
+      () => setDebounced({ target: targetInput, cards: cardsInput }),
+      VALIDATION_DEBOUNCE_MS
+    );
+    return () => window.clearTimeout(timer);
+  }, [targetInput, cardsInput]);
 
-    if (isNaN(target) || target <= 0) {
-      setValidationMsg({
-        type: 'error',
-        text: language === 'ko' ? '1 이상의 올바른 목표 숫자를 입력해주세요.' : 'Please enter a valid target number greater than 0.',
-      });
-      setSolutions([]);
-      return;
-    }
-
-    if (cards.length < 2 || cards.length > 8) {
-      setValidationMsg({
-        type: 'error',
-        text: language === 'ko' ? '2장 이상 8장 이하의 카드 숫자를 입력해주세요.' : 'Please enter between 2 and 8 card numbers.',
-      });
-      setSolutions([]);
-      return;
-    }
-
-    // Run quick BFS search
-    const sols = findAllDistinctSolutions(cards, target, 8);
-    setSolutions(sols);
-
-    if (sols.length > 0) {
-      setValidationMsg({
-        type: 'ok',
-        text:
-          language === 'ko'
-            ? `✨ 목표 [${target}] 달성 가능! 총 ${sols.length}가지의 수학적 해법이 확인되었습니다.`
-            : `✨ Target [${target}] is solvable! Found ${sols.length} verified mathematical pathways.`,
-      });
-    } else {
-      setValidationMsg({
-        type: 'warn',
-        text:
-          language === 'ko'
-            ? `⚠️ 기본 연산으로 즉시 풀리지 않을 수 있습니다 (거듭제곱/특수연산 필요할 수 있음).`
-            : `⚠️ May require advanced powers or factorial operations to solve.`,
-      });
-    }
-  }, [targetInput, cardsInput, language]);
-
-  if (!isOpen) return null;
+  useEffect(() => {
+    setNotice(null);
+  }, [targetInput, cardsInput, isOpen]);
 
   const target = parseInt(targetInput, 10);
-  const cards = cardsInput
-    .split(/[\s,]+/)
-    .map((n) => parseInt(n.trim(), 10))
-    .filter((n) => !isNaN(n) && n > 0);
-  const isValid = !isNaN(target) && target > 0 && cards.length >= 2 && cards.length <= 8;
+  const cards = useMemo(() => parseCards(cardsInput), [cardsInput]);
+  const isTargetValid = !isNaN(target) && target > 0;
+  const isCardCountValid = cards.length >= 2 && cards.length <= 8;
+  const isValid = isTargetValid && isCardCountValid;
+
+  const debouncedTarget = parseInt(debounced.target, 10);
+  const debouncedCards = useMemo(() => parseCards(debounced.cards), [debounced.cards]);
+  const debouncedValid =
+    !isNaN(debouncedTarget) && debouncedTarget > 0 && debouncedCards.length >= 2 && debouncedCards.length <= 8;
+  const isSettled = debounced.target === targetInput && debounced.cards === cardsInput;
+
+  // Only search while the modal is open (the component stays mounted while closed).
+  const { solutions, loading } = useSolverSolutions(
+    debouncedValid ? debouncedCards : null,
+    debouncedTarget,
+    8,
+    isOpen
+  );
+
+  let validationMsg: { type: 'ok' | 'error' | 'warn' | 'pending'; text: string } | null;
+  if (notice) {
+    validationMsg = { type: 'ok', text: notice };
+  } else if (!isTargetValid) {
+    validationMsg = {
+      type: 'error',
+      text: language === 'ko' ? '1 이상의 올바른 목표 숫자를 입력해주세요.' : 'Please enter a valid target number greater than 0.',
+    };
+  } else if (!isCardCountValid) {
+    validationMsg = {
+      type: 'error',
+      text: language === 'ko' ? '2장 이상 8장 이하의 카드 숫자를 입력해주세요.' : 'Please enter between 2 and 8 card numbers.',
+    };
+  } else if (!isSettled || loading) {
+    validationMsg = {
+      type: 'pending',
+      text: language === 'ko' ? '풀이 가능 여부를 확인하는 중…' : 'Checking whether this is solvable…',
+    };
+  } else if (solutions.length > 0) {
+    validationMsg = {
+      type: 'ok',
+      text:
+        language === 'ko'
+          ? `✨ 목표 [${target}] 달성 가능! 총 ${solutions.length}가지의 수학적 해법이 확인되었습니다.`
+          : `✨ Target [${target}] is solvable! Found ${solutions.length} verified mathematical pathways.`,
+    };
+  } else {
+    validationMsg = {
+      type: 'warn',
+      text:
+        language === 'ko'
+          ? `⚠️ 기본 연산으로 즉시 풀리지 않을 수 있습니다 (거듭제곱/특수연산 필요할 수 있음).`
+          : `⚠️ May require advanced powers or factorial operations to solve.`,
+    };
+  }
+
+  if (!isOpen) return null;
 
   const handleStartPlay = () => {
     if (!isValid) {
@@ -105,10 +133,7 @@ export const CustomGameModal: React.FC<CustomGameModalProps> = ({
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url);
       sound.playHint();
-      setValidationMsg({
-        type: 'ok',
-        text: language === 'ko' ? '📋 커스텀 퍼즐 도전 링크가 클립보드에 복사되었습니다!' : '📋 Puzzle challenge link copied to clipboard!',
-      });
+      setNotice(language === 'ko' ? '📋 커스텀 퍼즐 도전 링크가 클립보드에 복사되었습니다!' : '📋 Puzzle challenge link copied to clipboard!');
     }
   };
 
@@ -122,7 +147,12 @@ export const CustomGameModal: React.FC<CustomGameModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
       <div
-        className={`w-full max-w-lg rounded-3xl p-5 sm:p-6 border shadow-2xl relative overflow-hidden transition-all ${
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="custom-modal-title"
+        tabIndex={-1}
+        className={`w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl p-5 sm:p-6 border shadow-2xl relative transition-all ${
           isDark ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-zinc-200 text-zinc-900'
         }`}
       >
@@ -133,7 +163,9 @@ export const CustomGameModal: React.FC<CustomGameModalProps> = ({
               <Sliders className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-display font-extrabold text-lg">{t.customModal.title}</h3>
+              <h3 id="custom-modal-title" className="font-display font-extrabold text-lg">
+                {t.customModal.title}
+              </h3>
               <p className={`text-[11px] ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
                 {t.customModal.subtitle}
               </p>
@@ -145,6 +177,7 @@ export const CustomGameModal: React.FC<CustomGameModalProps> = ({
               sound.playCardDeselect();
               onClose();
             }}
+            aria-label={language === 'ko' ? '닫기' : 'Close'}
             className={`p-1.5 rounded-lg transition-colors ${
               isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-zinc-500 hover:bg-zinc-100'
             }`}
@@ -156,10 +189,14 @@ export const CustomGameModal: React.FC<CustomGameModalProps> = ({
         {/* Inputs */}
         <div className="flex flex-col gap-3.5 mb-4">
           <div>
-            <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
+            <label
+              htmlFor="custom-target-input"
+              className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}
+            >
               🎯 {t.customModal.targetLabel}
             </label>
             <input
+              id="custom-target-input"
               type="number"
               value={targetInput}
               onChange={(e) => setTargetInput(e.target.value)}
@@ -173,10 +210,14 @@ export const CustomGameModal: React.FC<CustomGameModalProps> = ({
           </div>
 
           <div>
-            <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
+            <label
+              htmlFor="custom-cards-input"
+              className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}
+            >
               🔢 {t.customModal.cardsLabel}
             </label>
             <input
+              id="custom-cards-input"
               type="text"
               value={cardsInput}
               onChange={(e) => setCardsInput(e.target.value)}
@@ -219,15 +260,23 @@ export const CustomGameModal: React.FC<CustomGameModalProps> = ({
           {/* Validation Feedback */}
           {validationMsg && (
             <div
+              role="status"
+              aria-live="polite"
               className={`p-3 rounded-xl border text-xs font-medium flex items-center gap-2 ${
-                validationMsg.type === 'ok'
+                validationMsg.type === 'pending'
+                  ? isDark
+                    ? 'bg-zinc-800/60 border-zinc-700 text-zinc-300'
+                    : 'bg-zinc-100 border-zinc-200 text-zinc-600'
+                  : validationMsg.type === 'ok'
                   ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
                   : validationMsg.type === 'warn'
                   ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
                   : 'bg-rose-500/15 border-rose-500/30 text-rose-300'
               }`}
             >
-              {validationMsg.type === 'ok' ? (
+              {validationMsg.type === 'pending' ? (
+                <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+              ) : validationMsg.type === 'ok' ? (
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
               ) : (
                 <AlertCircle className="w-4 h-4 shrink-0" />

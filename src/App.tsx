@@ -42,6 +42,7 @@ import {
 import { sound } from './utils/audio';
 import { getTranslation } from './utils/i18n';
 import { getQuoteForPuzzle } from './utils/quotes';
+import { isAnyModalOpen } from './hooks/useModalA11y';
 
 import { Navbar } from './components/Navbar';
 import { WorldBackdrop } from './components/WorldBackdrop';
@@ -142,6 +143,12 @@ export default function App() {
   const [history, setHistory] = useState<HistoryStep[]>([]);
   const [moves, setMoves] = useState<number>(0);
   const [isWon, setIsWon] = useState<boolean>(false);
+
+  // Set once the Solution Explorer's auto-execute has been used on this puzzle.
+  // Such a clear still shows the victory screen, but must not count toward
+  // stats/streak/achievements/history — even if the player then undoes a step and
+  // finishes it by hand. Cleared only when a new puzzle starts.
+  const autoSolvedRef = useRef(false);
 
   // Timers and scoring
   const [timeSec, setTimeSec] = useState<number>(0);
@@ -297,6 +304,7 @@ export default function App() {
         newPuzzle = generatePuzzle(CARD_COUNTS[newDiff], newDiff);
       }
 
+      autoSolvedRef.current = false;
       setPuzzle(newPuzzle);
       setInitialCards(newPuzzle.cards);
       setCards(
@@ -372,6 +380,9 @@ export default function App() {
         setIsWon(true);
         setShowVictory(true);
         triggerMascot('win');
+
+        // Auto-executed solutions are a "show me" clear, not a real one.
+        if (autoSolvedRef.current) return;
 
         const newAchievements = [...stats.achievements];
         if (!newAchievements.includes('first_win')) newAchievements.push('first_win');
@@ -588,63 +599,67 @@ export default function App() {
     [selected, isWon, handleApplyUnaryOnCard]
   );
 
-  // Apply Full Solution directly (Auto-Solve)
+  // Apply Full Solution directly (Auto-Solve). `source` says which board the steps
+  // were computed from: 'initial' replays them from the starting cards (replacing
+  // the history), 'current' continues from the cards on the board right now.
   const handleApplyFullSolution = useCallback(
-    (steps: SolutionStep[]) => {
-      let currentCardList: CardItem[] = initialCards.map((v, i) => ({
-        id: `card-${i}-${Date.now()}-${i}`,
-        value: v,
-      }));
-      const newHistory: HistoryStep[] = [];
+    (steps: SolutionStep[], source: 'initial' | 'current') => {
+      const stamp = Date.now();
+      let currentCardList: CardItem[] =
+        source === 'current'
+          ? [...cards]
+          : initialCards.map((v, i) => ({ id: `card-${i}-${stamp}-${i}`, value: v }));
+      const newHistory: HistoryStep[] = source === 'current' ? [...history] : [];
 
       for (let sIdx = 0; sIdx < steps.length; sIdx++) {
         const step = steps[sIdx];
         const stepSnapshot = [...currentCardList];
+        let nextList: CardItem[] | null = null;
 
         if (step.type === 'binary' && step.b !== undefined) {
           const idxA = currentCardList.findIndex((c) => c.value === step.a);
-          let idxB = currentCardList.findIndex((c, idx) => c.value === step.b && idx !== idxA);
-          if (idxA === -1 || idxB === -1) {
-            idxB = currentCardList.findIndex((c) => c.value === step.b);
-          }
-
+          const idxB = currentCardList.findIndex((c, idx) => c.value === step.b && idx !== idxA);
           if (idxA !== -1 && idxB !== -1) {
-            const rem = currentCardList.filter((_, i) => i !== idxA && i !== idxB);
-            const merged: CardItem = {
-              id: `card-sol-${sIdx}-${Date.now()}`,
-              value: step.result,
-              isComputed: true,
-            };
-            currentCardList = [...rem, merged];
+            nextList = [
+              ...currentCardList.filter((_, i) => i !== idxA && i !== idxB),
+              { id: `card-sol-${sIdx}-${stamp}`, value: step.result, isComputed: true },
+            ];
           }
         } else if (step.type === 'unary') {
           const idx = currentCardList.findIndex((c) => c.value === step.a);
           if (idx !== -1) {
-            const rem = currentCardList.filter((_, i) => i !== idx);
-            const transformed: CardItem = {
-              id: `card-sol-${sIdx}-${Date.now()}`,
-              value: step.result,
-              isComputed: true,
-            };
-            currentCardList = [...rem, transformed];
+            nextList = [
+              ...currentCardList.filter((_, i) => i !== idx),
+              { id: `card-sol-${sIdx}-${stamp}`, value: step.result, isComputed: true },
+            ];
           }
         }
 
+        // The steps don't match this board (shouldn't happen, but a half-applied
+        // solution would corrupt it) — leave the game untouched.
+        if (!nextList) {
+          sound.playError();
+          return;
+        }
+        currentCardList = nextList;
+
         newHistory.push({
-          id: `step-sol-${sIdx}-${Date.now()}`,
+          id: `step-sol-${sIdx}-${stamp}`,
           actionDescription: step.explanation,
           cards: stepSnapshot,
-          timestamp: Date.now(),
+          timestamp: stamp,
         });
       }
 
+      const nextMoves = source === 'current' ? moves + steps.length : steps.length;
+      autoSolvedRef.current = true;
       setCards(currentCardList);
       setHistory(newHistory);
-      setMoves(steps.length);
+      setMoves(nextMoves);
       setSelected([]);
-      verifyGameEnd(currentCardList, steps.length);
+      verifyGameEnd(currentCardList, nextMoves);
     },
-    [initialCards, verifyGameEnd]
+    [initialCards, cards, history, moves, verifyGameEnd]
   );
 
   // Undo last step
@@ -689,12 +704,45 @@ export default function App() {
     setShowVictory(false);
   }, [initialCards]);
 
+  const anyModalOpen =
+    showVictory ||
+    showHint ||
+    showSolution ||
+    showStats ||
+    showRules ||
+    showCustom ||
+    showCardThemes ||
+    showOnboarding ||
+    showIntro;
+
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
+      if (e.defaultPrevented || e.isComposing) return;
+      // Modals own the keyboard while open (they handle ESC themselves).
+      if (anyModalOpen || isAnyModalOpen()) return;
+
+      const target = e.target as HTMLElement | null;
+      // Text entry: every key is typing, never a shortcut.
+      if (
+        target &&
+        (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
+      ) {
         return;
       }
+      // Space/Enter on a focused control activate that control (a button, a card,
+      // a link) — don't also fire the Space → hint shortcut on top of it.
+      if (
+        (e.key === ' ' || e.key === 'Enter') &&
+        target &&
+        target !== document.body &&
+        target !== document.documentElement
+      ) {
+        return;
+      }
+      // Leave browser/OS shortcuts (Ctrl+R, Cmd+A, Alt+…) alone; Ctrl/Cmd+Z is our undo.
+      const isUndoChord = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'z';
+      if ((e.ctrlKey || e.metaKey || e.altKey) && !isUndoChord) return;
 
       // 1 ~ 7 key: Select Card
       if (/^[1-7]$/.test(e.key)) {
@@ -761,7 +809,7 @@ export default function App() {
       }
 
       // Undo / Reset / Hint / Solution / New Game
-      else if (e.key.toLowerCase() === 'u' || (e.ctrlKey && e.key.toLowerCase() === 'z')) {
+      else if (e.key.toLowerCase() === 'u' || isUndoChord) {
         e.preventDefault();
         sound.playUndo();
         handleUndo();
@@ -786,7 +834,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cards, toggleSelectCard, handleApplyBinary, handleApplyUnary, handleUndo, handleReset]);
+  }, [anyModalOpen, cards, toggleSelectCard, handleApplyBinary, handleApplyUnary, handleUndo, handleReset]);
 
   return (
     <div
@@ -1036,6 +1084,8 @@ export default function App() {
         history={history}
         onNextGame={() => startNewGame(mode, difficulty)}
         onReplay={handleReset}
+        onClose={() => setShowVictory(false)}
+        enableConfetti={profile.enableConfetti}
         theme={theme}
         score={blitzScore}
         language={language}
@@ -1048,8 +1098,6 @@ export default function App() {
         onClose={() => setShowHint(false)}
         cards={cards}
         target={puzzle.target}
-        initialCards={initialCards}
-        initialSolution={puzzle.solution}
         onOpenFullSolution={() => setShowSolution(true)}
         theme={theme}
         language={language}
